@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "Paeonia"
+version = "0.0.1"
+authors = [
+    { name="Vytautas Jancauskas", email="unaudio@gmail.com" },
+]
+description = "Computer aided composition package"
+dependencies = [ "pyfluidsynth" ]
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/orbitfold/paeonia"
+"Bug Tracker" = "https://github.com/orbitfold/paeonia/issues"
