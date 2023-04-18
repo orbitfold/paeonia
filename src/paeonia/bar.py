@@ -1,18 +1,10 @@
-PPQN = 64
-
 class Bar:
-    def __init__(self):
+    def __init__(self, string, time_sig=(4, 4), key_sig=[]):
         pass
-
+    
+    def parse(self, string):
+        dur_regexp = r'[whqestxuy]'
+        note_regexp = r'[cdefgab][0-9]'
+        
     def to_midi(self, channel):
-        midi = []
-        for note in self:
-            if note.is_rest:
-                for _ in range(note.duration * 4.0 * PPQN):
-                    midi.append([])
-            else:
-                midi.append([9 * 16 + channel, note.note, note.velocity])
-                for _ in range(note.duration * 4.0 * PPQN - 1):
-                    midi.append([])
-                midi.append([8 * 16 + channel, note.note, note.velocity])
-        return midi
+        pass
