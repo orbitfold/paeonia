@@ -1,4 +1,4 @@
-from paeonia import Bar
+from paeonia import bar
 
 def test_bar():
-  Bar.parse("q C4 -w Cs4E4Gb4")
+  bar.Bar.parse("q C4 -w Cs4E4Gb4")
