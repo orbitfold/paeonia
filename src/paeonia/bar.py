@@ -2,7 +2,7 @@ import re
 
 class Bar:
     def __init__(self, string, time_sig=(4, 4), key_sig=[]):
-        pass
+        self.notes = self.parse(string)
     
     def parse(self, string):
         dur_regexp = re.compile(r'-?[whqestxuy].?.?.?')
