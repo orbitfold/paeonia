@@ -1,2 +1,4 @@
+from paeonia import Bar
+
 def test_bar():
-  assert(1 + 1 == 2)
+  Bar.parse("q C4 -w Cs4E4Gb4")
