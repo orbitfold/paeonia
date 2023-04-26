@@ -1,4 +1,4 @@
-from peony.rule import Scale
+from paeonia.rule import Scale
 
 def test_scale():
   scale = Scale()
