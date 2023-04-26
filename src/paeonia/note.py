@@ -1,10 +1,9 @@
 import numpy as np
 
 class Note:
-    def __init__(self, note=None, duration=1.0):
+    def __init__(self, note=None):
         self.chain = []
-        self.duration = duration
-
+        
     @property
     def note(self):
         distribution = self.chain[0].distribution
