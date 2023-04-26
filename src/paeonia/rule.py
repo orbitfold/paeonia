@@ -7,3 +7,17 @@ class Scale:
   @property
   def distribution(self):
     pass
+
+ 
+class Range:
+  def __init__(self, a, b):
+    assert(a < b)
+    self.a = a
+    self.b = b
+    
+  @property
+  def distribution(self):
+    distribution = np.zeros(127)
+    distribution[self.a:self.b] = np.ones(self.b - self.a)
+    distribution = distribution / distribution.sum()
+    return distribution
