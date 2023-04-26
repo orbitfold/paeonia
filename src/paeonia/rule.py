@@ -1,12 +1,18 @@
 import numpy as np
 
 class Scale:
-  def __init__(self, root=0, mode=0, strength=1.0):
-    scale = np.array([1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1])
+  def __init__(self, mode=0, strength=1.0):
+    n = (5 / 12.) * (1.0 - strength)
+    w = (7 / 12.) * strength
+    scale = np.array([w, n, w, n, w, w, n, w, n, w, n, w])
+    scale = np.roll(scale, mode)
+    self.p = scale * 5 + (scale * 6)[:-7]
+    self.p = self.p / self.p.sum()
+    
   
   @property
   def distribution(self):
-    pass
+    return self.p
 
  
 class Range:
