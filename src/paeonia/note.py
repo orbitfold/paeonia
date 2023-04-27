@@ -10,8 +10,8 @@ class Note:
         for rule in self.chain[1:]:
             distribution = rule.distribution * distribution
             distribution = distribution / distribution.sum()
-        self._note = np.random.choice(list(range(127)), p=distribution)
-        return self._note
+        self.last_note = np.random.choice(list(range(127)), p=distribution)
+        return self.last_note
 
     def append(self, rule):
         self.chain.append(rule)
