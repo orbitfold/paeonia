@@ -3,6 +3,7 @@ import numpy as np
 class Note:
     def __init__(self, note=None):
         self.chain = []
+        self.history = []
         
     @property
     def note(self):
@@ -10,8 +11,8 @@ class Note:
         for rule in self.chain[1:]:
             distribution = rule.distribution * distribution
             distribution = distribution / distribution.sum()
-        self.last_note = np.random.choice(list(range(127)), p=distribution)
-        return self.last_note
+        self.history.append(np.random.choice(list(range(127)), p=distribution))
+        return self.history[-1]
 
     def append(self, rule):
         self.chain.append(rule)
