@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 class Scale:
   def __init__(self, mode=0, strength=1.0):
