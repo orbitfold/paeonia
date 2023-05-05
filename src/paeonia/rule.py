@@ -6,7 +6,7 @@ class Scale:
     w = (7 / 12.) * strength
     scale = np.array([w, n, w, n, w, w, n, w, n, w, n, w])
     scale = np.roll(scale, mode)
-    self.p = list(scale) * 5 + (list(scale) * 6)[:-7]
+    self.p = list(scale) * 5 + (list(scale) * 6)[:-5]
     self.p = self.p / sum(self.p)
   
   @property
