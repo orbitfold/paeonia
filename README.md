@@ -1,5 +1,8 @@
 # paeonia
 
-p = Note()
-p.add(Scale('C', 'major'))
-p.add(RandomWalk())
+```
+v = Uniform('C0', 'C10')
+v.chain(Scale('C', 'minor'))
+for note in v:
+   print(note)
+```
