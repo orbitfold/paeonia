@@ -9,7 +9,7 @@ authors = [
     { name="Vytautas Jancauskas", email="unaudio@gmail.com" },
 ]
 description = "Computer aided composition package"
-dependencies = [ "pyfluidsynth", "mido", "deal", "numpy" ]
+dependencies = [ "pyfluidsynth", "mido", "deal", "numpy", "numba", "pyaudio" ]
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
