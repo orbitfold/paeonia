@@ -6,6 +6,15 @@ class Phasor:
     def __init__(self, **kwargs):
         pass
 
+class LinSpace:
+    def __init__(self, start, end, time):
+        self.start = start
+        self.end = end
+        self.time = time
+
+    def process(self):
+        pass
+
 class DAC:
     phase = 0.0
     
