@@ -2,7 +2,7 @@ import os
 from paeonia import Note, Bar, Voice, Score
 
 def test_workflow():
-    notes = [Note(pitch, 1, 0.75) for pitch in range(60, 69)]
+    notes = [Note([pitch], 1, 0.75) for pitch in range(60, 69)]
     bar1 = Bar()
     bar2 = Bar()
     bar3 = Bar()
