@@ -3,6 +3,6 @@ class Score:
         pass
 
     def to_midi(self, path):
-        pass
-
-
+        for voice in self.voices:
+            for bar in voice.bars:
+                pass
