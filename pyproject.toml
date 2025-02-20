@@ -15,7 +15,6 @@ dependencies = [
     "deal",
     "numpy",
     "numba",
-    "pyaudio",
     "pytest",
     ]
 readme = "README.md"
