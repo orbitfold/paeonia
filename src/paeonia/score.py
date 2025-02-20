@@ -12,9 +12,9 @@ class Score:
         path: str
             A filename to write to.
         """
-        mid = MidiFile()
+        mid = MidiFile(ticks_per_beat=tpb)
         for voice in self.voices:
-            track = MidiTrack(ticks_per_beat=tpb) 
+            track = MidiTrack() 
             mid.tracks.append(track)
             for bar in voice.bars:
                 for note in bar.notes:
