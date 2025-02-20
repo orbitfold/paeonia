@@ -8,4 +8,11 @@ class Score:
                 pass
                 
     def add_voice(self, voice):
+        """Add a voice to this score.
+
+        Parameters
+        ----------
+        voice: Voice
+            A Voice to add to the Score.
+        """
         self.voices.append(voice)
