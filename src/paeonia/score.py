@@ -4,7 +4,7 @@ class Score:
     def __init__(self):
         self.voices = []
 
-    def to_midi(self, path):
+    def to_midi(self, path, tpb=480):
         """Write the score to MIDI file.
     
         Parameters
@@ -14,12 +14,12 @@ class Score:
         """
         mid = MidiFile()
         for voice in self.voices:
-            track = MidiTrack() 
+            track = MidiTrack(ticks_per_beat=tpb) 
             mid.tracks.append(track)
             for bar in voice.bars:
                 for note in bar.notes:
                     for pitch in note.pitches:
-                        track.append(Message('note_on', note=int(pitch), velocity=int(127 * note.velocity), time=int(32 * note.duration)))
+                        track.append(Message('note_on', note=int(pitch), velocity=int(127 * note.velocity), time=int(4 * tpb * note.duration)))
                         track.append(Message('note_off', note=int(pitch), velocity=127, time=0))
         mid.save(path)
                 
