@@ -13,8 +13,6 @@ class Score:
             A filename to write to.
         """
         mid = MidiFile()
-        track.append(Message('note_on', note=64, velocity=64, time=32))
-        track.append(Message('note_off', note=64, velocity=127, time=32))
         for voice in self.voices:
             track = MidiTrack() 
             mid.tracks.append(track)
