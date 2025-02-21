@@ -1,5 +1,6 @@
 import os
 from paeonia import Note, Bar, Voice, Score
+from paeonia.utils import sf2_download
 
 def test_workflow():
     notes = [Note([pitch], 1, 0.75) for pitch in range(60, 69)]
@@ -22,3 +23,7 @@ def test_workflow():
     score.add_voice(voice2)
     score.to_midi('test.mid')
     assert(os.path.isfile('test.mid'))
+
+def test_sf2_download():
+    file = sf2_download()
+    assert(os.path.isfile(file))
