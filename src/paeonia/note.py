@@ -1,6 +1,6 @@
 from mido import Message
 from paeonia.utils import download_sf2
-import fluidsynth
+import tinysoundfont
 import time
 
 class Note:
@@ -20,10 +20,10 @@ class Note:
         return messages
 
     def preview(self, fs=None):
-        """Preview a note using fluidsynth.
+        """Preview a note using tinysoundfont.
         """
         if fs is None:
-            fs = fluidsynth.Synth(samplerate=48000.0)
+            fs = tinysoundfont.Synth()
             fs.start()
             sfid = fs.sfload(download_sf2())
             fs.program_select(0, sfid, 0, 0)
