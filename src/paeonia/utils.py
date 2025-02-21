@@ -15,6 +15,6 @@ def download_sf2():
         wget.download(sf2_link, str(home / '.paeonia'))
         with zipfile.ZipFile(zip_location, 'r') as zip_ref:
             zip_ref.extractall(home / '.paeonia')
-        return sf2_location
+        return str(sf2_location)
     else:
-        return sf2_location
+        return str(sf2_location)
