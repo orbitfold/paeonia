@@ -12,7 +12,7 @@ def download_sf2():
     if not os.path.isfile(sf2_location):
         wget.download(sf2_link, '~/.paeonia')
         with zipfile.ZipFile(zip_location, 'r') as zip_ref:
-            zip_ref.extract_all('~/.paeonia')
+            zip_ref.extractall('~/.paeonia')
         return sf2_location
     else:
         return sf2_location
