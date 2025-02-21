@@ -23,7 +23,7 @@ class Note:
         """Preview a note using fluidsynth.
         """
         if fs is None:
-            fs = fluidsynth.Synth()
+            fs = fluidsynth.Synth(samplerate=48000.0)
             fs.start()
             sfid = fs.sfload(download_sf2())
             fs.program_select(0, sfid, 0, 0)
