@@ -28,7 +28,7 @@ class Note:
             sfid = fs.sfload(download_sf2())
             fs.program_select(0, sfid, 0, 0)
         for index, pitch in enumerate(self.pitches):
-            fs.noteon(0, pitch, self.velocity)
+            fs.noteon(0, pitch, int(127 * self.velocity))
         time.sleep(self.duration)
         for index, pitch in enumerate(self.pitches):
             fs.noteoff(0, pitch)
