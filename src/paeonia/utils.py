@@ -12,7 +12,7 @@ def download_sf2():
     zip_location = home / '.paeonia' / 'FluidR3_GM.zip'
     sf2_link = 'https://keymusician01.s3.amazonaws.com/FluidR3_GM.zip'
     if not os.path.isfile(sf2_location):
-        wget.download(sf2_link, home / '.paeonia')
+        wget.download(sf2_link, str(home / '.paeonia'))
         with zipfile.ZipFile(zip_location, 'r') as zip_ref:
             zip_ref.extractall(home / '.paeonia')
         return sf2_location
