@@ -16,6 +16,7 @@ dependencies = [
     "numpy",
     "numba",
     "pytest",
+    "wget",
     ]
 readme = "README.md"
 requires-python = ">=3.7"
