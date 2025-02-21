@@ -25,5 +25,5 @@ def test_workflow():
     assert(os.path.isfile('test.mid'))
 
 def test_sf2_download():
-    file = download_sf2()
+    file = sf2_download()
     assert(os.path.isfile(file))
