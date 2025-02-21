@@ -24,6 +24,6 @@ def test_workflow():
     score.to_midi('test.mid')
     assert(os.path.isfile('test.mid'))
 
-def test_sf2_download():
+def test_download_sf2():
     file = download_sf2()
     assert(os.path.isfile(file))
