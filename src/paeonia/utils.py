@@ -2,6 +2,8 @@ import os
 import wget
 import zipfile
 import pathlib
+import tempfile
+from mido import MidiFile, MidiTrack
 
 def download_sf2():
     """Download the GM soundfont to be used with fluidsynth.
@@ -18,3 +20,14 @@ def download_sf2():
         return str(sf2_location)
     else:
         return str(sf2_location)
+
+def message_list_to_midi_file(lst, tpb):
+    midi = MidiFile(ticks_per_beat=tpb)
+    track = MidiTrack()
+    for message in lst:
+        track.append(message)
+    midi.tracks.append(track)
+    fd, path = tempfile.mkstemp(suffix='.mid')
+    os.close(fd)
+    midi.save(path)
+    return path
