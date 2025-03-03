@@ -30,15 +30,15 @@ def test_download_sf2():
 
 def test_parsing_notes():
     note1 = Note("c'")
-    assert(note1.notes == [60])
+    assert(note1.pitches == [60])
     assert(note1.duration == 0.25)
     note2 = Note("a1")
-    assert(note2.notes == [57])
+    assert(note2.pitches == [57])
     assert(note2.duration == 1.0)
     note3 = Note("gs'''8.")
-    assert(note3.notes == [92])
+    assert(note3.pitches == [92])
     assert(note3.duration == 0.1875)
     note4 = Note("ff,,4")
-    assert(note4.notes == [28])
+    assert(note4.pitches == [28])
     assert(note4.duration == 0.25)
     
