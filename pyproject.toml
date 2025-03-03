@@ -18,6 +18,7 @@ dependencies = [
     "numba",
     "pytest",
     "wget",
+    "pypeg2",
     ]
 readme = "README.md"
 requires-python = ">=3.7"
