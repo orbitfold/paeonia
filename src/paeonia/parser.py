@@ -42,79 +42,69 @@ class Duration(str):
 class Note(List):
     grammar = NoteName, optional(Accidental), optional(OctaveIndicator), optional(Duration)
 
+    def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
+        pitch = None
+        for c in self:
+            if isinstance(c, NoteName):
+                pitch = LETTER_TO_PITCH[str(c)]
+            elif isinstance(c, Accidental):
+                if c == '#':
+                    pitch += 1
+                else:
+                    pitch -= 1
+            elif isinstance(c, OctaveIndicator):
+                for indicator in c:
+                    if indicator == "'":
+                        octave += 1
+                    else:
+                        octave -= 1
+            elif isinstance(c, Duration):
+                duration = c.get_duration()
+        pitch = 48 + octave * 12 + pitch
+        self.octave = octave
+        return Note_(pitches=[pitch], duration=duration)
+
 class Rest(List):
     grammar = "R", optional(Duration)
+
+    def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
+        self.octave = octave
+        if self[0] is None:
+            return Note_(pitches=None, duration=duration)
+        else:
+            return Note_(pitches=None, duration=self[0].get_duration())
 
 # Define a chord (list of notes enclosed in < >, optionally followed by a duration)
 class Chord(List):
     grammar = "<", maybe_some(Note), ">", optional(Duration)
 
+    def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
+        chord = []
+        for note in self:
+            if isinstance(note, Note):
+                parsed_note = note.get_note(octave=(octave if relative else 0), duration=duration)
+                octave = note.octave
+                duration = parsed_note.duration
+                chord.append(parsed_note.pitches[0])
+            else:
+                duration = note.get_duration()
+        self.octave = octave
+        return Note_(pitches=chord, duration=duration)
+
 # Define a sequence of notes and chords
 class Music(List):
     grammar = maybe_some([Note, Chord, Rest])
-
-def parse_duration(duration):
-    d = str(duration)
-    idx = d.find('.')
-    if idx < 0:
-        return Fraction(1, int(d))
-    else:
-        return Fraction(1, int(d[:idx])) * (1 + Fraction(1, 2) * (len(d) - idx))
-
-def parse_note(event, octave=0, duration=Fraction('1/4')):
-    pitch = None
-    for c in event:
-        if type(c) == NoteName:
-            pitch = LETTER_TO_PITCH[str(c)]
-        elif type(c) == Accidental:
-            if c == '#':
-                pitch += 1
-            else:
-                pitch -= 1
-        elif type(c) == OctaveIndicator:
-            for indicator in c:
-                if indicator == "'":
-                    octave += 1
-                else:
-                    octave -= 1
-        elif type(c) == Duration:
-            duration = parse_duration(c)
-    pitch = 48 + octave * 12 + pitch
-    return pitch, octave, duration
-
-def parse_rest(event, duration=Fraction('1/4')):
-    if event[0] is None:
-        return duration
-    else:
-        return parse_duration(event[0])
 
 def np(notation, relative=True):
     parsed_bar = parse(notation, Music)
     notes = []
     octave = 0
-    dur = Fraction('1/4')
+    duration = Fraction('1/4')
     for event in parsed_bar:
-        if type(event) == Note:
-            p, o, d = parse_note(event, octave=(octave if relative else 0), duration=dur)
-            octave = o
-            dur = d
-            notes.append(Note_(pitches=[p], duration=d))
-        elif type(event) == Rest:
-            d = parse_rest(event, duration=dur)
-            dur = d
-            notes.append(Note_(None, duration=dur))
-        else:
-            chord = []
-            for note in event:
-                if type(note) == Note:
-                    p, o, d = parse_note(note, octave=(octave if relative else 0), duration=dur)
-                    octave = o
-                    dur = d
-                    chord.append(p)
-                else:
-                    duration = parse_duration(note)
-                    dur = duration
-            notes.append(Note_(pitches=chord, duration=dur))
+        parsed_note = event.get_note(octave=(octave if relative else 0), duration=duration, relative=relative)
+        octave = event.octave
+        duration = parsed_note.duration
+        notes.append(parsed_note)
     if len(notes) == 1:
         return notes[0]
     elif len(notes) > 1:

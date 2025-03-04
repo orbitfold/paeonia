@@ -39,7 +39,7 @@ class Note:
             self.pitches = pitches
             self.duration = duration
             self.velocity = velocity
-
+        
     def parse_notation(self, notation):
         m = re.match(r"[a-g](s|f)?", notation)
         pc = NOTE_VALUES[m.group()]
