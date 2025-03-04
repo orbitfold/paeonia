@@ -9,7 +9,7 @@ def test_np():
     for note, pitch_list in zip(parsed_bar.notes, pitches):
         assert(note.pitches == pitch_list)
     durations = [Fraction('3/8'), Fraction('1/4'), Fraction('3/4'), Fraction('1/16'),
-                 Fraction('3/4'), Fraction('1/4'), Fraction('1/4'), Fraction('1/2'),
+                 Fraction('3/4'), Fraction('3/4'), Fraction('3/4'), Fraction('1/2'),
                  Fraction('1/1')]
     for note, duration in zip(parsed_bar.notes, durations):
         assert(note.duration == duration)

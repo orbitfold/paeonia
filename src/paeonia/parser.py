@@ -30,6 +30,14 @@ class OctaveIndicator(str):
 class Duration(str):
     grammar = re.compile(r"[0-9]+\.{0,2}")  # Allows "4", "8.", or "16.."
 
+    def get_duration(self):
+        d = str(self)
+        idx = d.find('.')
+        if idx < 0:
+            return Fraction(1, int(d))
+        else:
+            return Fraction(1, int(d[:idx])) * (1 + Fraction(1, 2) * (len(d) - idx))        
+
 # Define a note (combines NoteName, optional Accidental, OctaveIndicator, and Duration)
 class Note(List):
     grammar = NoteName, optional(Accidental), optional(OctaveIndicator), optional(Duration)
@@ -53,8 +61,7 @@ def parse_duration(duration):
     else:
         return Fraction(1, int(d[:idx])) * (1 + Fraction(1, 2) * (len(d) - idx))
 
-def parse_note(event, octave=0):
-    duration = Fraction(1, 4)
+def parse_note(event, octave=0, duration=Fraction('1/4')):
     pitch = None
     for c in event:
         if type(c) == NoteName:
@@ -75,9 +82,9 @@ def parse_note(event, octave=0):
     pitch = 48 + octave * 12 + pitch
     return pitch, octave, duration
 
-def parse_rest(event):
+def parse_rest(event, duration=Fraction('1/4')):
     if event[0] is None:
-        return Fraction(1, 4)
+        return duration
     else:
         return parse_duration(event[0])
 
@@ -85,24 +92,29 @@ def np(notation, relative=True):
     parsed_bar = parse(notation, Music)
     notes = []
     octave = 0
+    dur = Fraction('1/4')
     for event in parsed_bar:
         if type(event) == Note:
-            p, o, d = parse_note(event, octave=(octave if relative else 0))
+            p, o, d = parse_note(event, octave=(octave if relative else 0), duration=dur)
             octave = o
+            dur = d
             notes.append(Note_(pitches=[p], duration=d))
         elif type(event) == Rest:
-            d = parse_rest(event)
-            notes.append(Note_(None, duration=d))
+            d = parse_rest(event, duration=dur)
+            dur = d
+            notes.append(Note_(None, duration=dur))
         else:
             chord = []
             for note in event:
                 if type(note) == Note:
-                    p, o, d = parse_note(note, octave=(octave if relative else 0))
+                    p, o, d = parse_note(note, octave=(octave if relative else 0), duration=dur)
                     octave = o
+                    dur = d
                     chord.append(p)
                 else:
                     duration = parse_duration(note)
-            notes.append(Note_(pitches=chord, duration=duration))
+                    dur = duration
+            notes.append(Note_(pitches=chord, duration=dur))
     if len(notes) == 1:
         return notes[0]
     elif len(notes) > 1:
