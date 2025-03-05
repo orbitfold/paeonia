@@ -19,7 +19,6 @@ dependencies = [
     "pytest",
     "wget",
     "pypeg2",
-    "Wand",
     "ipython",
     ]
 readme = "README.md"
