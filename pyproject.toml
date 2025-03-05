@@ -19,6 +19,7 @@ dependencies = [
     "pytest",
     "wget",
     "pypeg2",
+    "Wand"
     ]
 readme = "README.md"
 requires-python = ">=3.7"
