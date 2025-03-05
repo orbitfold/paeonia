@@ -121,7 +121,7 @@ class Note:
             display(Image(filename=os.path.join(tmpdir, 'notation.png')))
 
 
-    def preview(self, tpb=480):
+    def play(self, tpb=480):
         """Preview a note using fluidsynth.
         """
         messages = self.to_midi(tpb=tpb)

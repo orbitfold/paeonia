@@ -32,7 +32,7 @@ class Bar:
                 offset = 0
         return messages, offset
 
-    def preview(self, tpb=480):
+    def play(self, tpb=480):
         """Preview a note using fluidsynth.
         """
         messages, _ = self.to_midi(tpb=tpb)

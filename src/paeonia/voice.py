@@ -27,7 +27,7 @@ class Voice:
             message_stream += messages
         return message_stream
 
-    def preview(self, tpb=480):
+    def play(self, tpb=480):
         """Preview a note using fluidsynth.
         """
         messages = self.to_midi(tpb=tpb)
