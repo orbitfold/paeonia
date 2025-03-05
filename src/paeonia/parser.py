@@ -1,4 +1,5 @@
-from pypeg2 import parse, optional, List, maybe_some
+from pypeg2 import optional, List, maybe_some
+from pypeg2 import parse as parse_
 import re
 from paeonia import Note as Note_
 from paeonia import Bar
@@ -95,8 +96,8 @@ class Chord(List):
 class Music(List):
     grammar = maybe_some([Note, Chord, Rest])
 
-def np(notation, relative=True):
-    parsed_bar = parse(notation, Music)
+def parse(notation, relative=True):
+    parsed_bar = parse_(notation, Music)
     notes = []
     octave = 0
     duration = Fraction('1/4')
