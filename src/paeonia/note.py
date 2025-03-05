@@ -67,6 +67,29 @@ class Note:
             octave_identifier = ""
         return name + octave_identifier
 
+    @staticmethod
+    def duration_to_lilypond(duration):
+        """Convert fractional duration to a lilypond duration notation.
+
+        Parameters
+        ----------
+        duration: Fraction
+            Duration as a fraction
+
+        Returns
+        -------
+        str
+            Lilypond duration
+        """
+        if duration.numerator == 1:
+            return str(duration.denominator)
+        else:
+            n = duration.numerator
+            d = duration.denominator
+            no_dot = d // 2
+            n_dots = n // 2
+            return f"{no_dot}" + "." * n_dots
+
     def to_lilypond(self):
         """Return lilypond representation of this note.
 
