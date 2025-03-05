@@ -59,7 +59,7 @@ class Note:
             8: 'gis',
             9: 'a',
             10: 'ais',
-            11: 'b'
+            11: 'b',
         }
         name = conversion[int(pitch) % 12]
         octave = int(pitch) // 12 - 4
@@ -103,13 +103,15 @@ class Note:
             Lilypond representation 
         """
         if self.pitches is None:
-            return ""
+            return "r" + Note.duration_to_lilypond(self.duration)
         elif len(self.pitches) < 2:
             return Note.note_to_lilypond(self.pitches[0]) + Note.duration_to_lilypond(self.duration)
         else:
             return "<" + " ".join([Note.note_to_lilypond(note) for note in self.pitches]) + ">" + Note.duration_to_lilypond(self.duration)
 
     def show(self):
+        """Attempts to render a lilypond file and display it on a Jupyter notebook.
+        """
         template = Template(importlib.resources.open_text('paeonia.data', 'note_template.ly').read())
         with tempfile.TemporaryDirectory() as tmpdir:
             notation = template.substitute(notation=self.to_lilypond())
