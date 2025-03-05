@@ -101,9 +101,9 @@ class Note:
         if self.pitches is None:
             return ""
         elif len(self.pitches) < 2:
-            pass
+            return Note.note_to_lilypond(self.pitches[0]) + Note.duration_to_lilypond(self.duration)
         else:
-            pass
+            return "<" + " ".join([Note.note_to_lilypond(note) for note in self.pitches]) + ">" + Note.duration_to_lilypond(self.duration)
 
     def show(self):
         pass
