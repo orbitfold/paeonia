@@ -4,8 +4,11 @@ import subprocess
 import os
 
 class Voice:
-    def __init__(self):
-        self.bars = []
+    def __init__(self, bars=None):
+        if bars is None:
+            self.bars = []
+        else:
+            self.bars = bars
 
     def add_bar(self, bar):
         """Add a new bar to this voice.
