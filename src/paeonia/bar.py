@@ -1,11 +1,13 @@
 from mido import Message, MetaMessage
 from paeonia.utils import download_sf2, message_list_to_midi_file
+from paeonia import Note
 import subprocess
 import os
 from string import Template
 import importlib
 import tempfile
 from IPython.display import display, Image
+from copy import copy
 
 class Bar:
     def __init__(self, notes=None):
@@ -23,6 +25,25 @@ class Bar:
            A note to add
         """
         self.notes.append(note)
+
+    def retrograde(self):
+        """Return a bar with a retrograde pitch variant.
+        Durations are unaffected.
+
+        Returns
+        -------
+        Bar
+            A fresh new bar with pitches in reverse order
+        """
+        new_bar = Bar()
+        pitches = [note.pitches for note in self.notes if note.pitches is not None]
+        reversed_pitches = list(reversed(pitches))
+        for note in self.notes:
+            if note.pitches is None:
+                new_bar.add_note(copy(note))
+            else:
+                new_bar.add_note(Note(pitches=reversed_pitches.pop(0), duration=note.duration))
+        return new_bar
 
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this bar.

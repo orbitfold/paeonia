@@ -19,6 +19,12 @@ class Note:
             self.pitches = pitches
             self.duration = duration
             self.velocity = velocity
+
+    def __copy__(self):
+        if self.pitches is None:
+            return Note(pitches=None, duration=self.duration)
+        else:
+            return Note(pitches=list(self.pitches), duration=self.duration)
         
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this note.
@@ -129,6 +135,7 @@ class Note:
         messages.append(MetaMessage('end_of_track', time=0))
         midi_file = message_list_to_midi_file(messages, tpb)
         sf_file = download_sf2()
-        subprocess.run(['fluidsynth', '-i', sf_file, midi_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['fluidsynth', '-i', sf_file, midi_file],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         os.remove(midi_file)
 
