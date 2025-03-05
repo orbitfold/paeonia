@@ -12,14 +12,9 @@ from copy import copy
 
 class Note:
     def __init__(self, pitches=None, duration=None, velocity=0.75):
-        if isinstance(pitches, str):
-            p, d = self.parse_notation(pitches)
-            self.pitches = [p]
-            self.duration = d
-        else:
-            self.pitches = pitches
-            self.duration = duration
-            self.velocity = velocity
+        self.pitches = pitches
+        self.duration = duration
+        self.velocity = velocity
 
     def __copy__(self):
         if self.pitches is None:
