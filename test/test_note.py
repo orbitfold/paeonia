@@ -20,5 +20,12 @@ def test_duration_to_lilypond():
     assert(duration == '16.')
 
 def test_to_lilypond():
-    note = Note(pitches=[60, 63, 67], duration=Fraction(3/4))
+    note = Note(pitches=[60, 63, 67], duration=Fraction('3/4'))
     assert(note.to_lilypond() == "<c' dis' g'>2.")
+
+def test_add_sub():
+    note = Note(pitches=[60, 68], duration=Fraction('3/4'))
+    (note + 3).pitches == [63, 71]
+    (note - 5).pitches == [55, 63]
+    rest = Note(pitches=None, duration=Fraction('3/4'))
+    assert(rest == (rest + 2))

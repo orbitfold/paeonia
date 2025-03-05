@@ -27,10 +27,14 @@ class Note:
         else:
             return Note(pitches=list(self.pitches), duration=self.duration)
 
+    def __eq__(self, other):
+        return self.pitches == other.pitches and self.duration == other.duration
+
     def __add__(self, other):
         if self.pitches is not None:
             new_note = copy(self)
             new_note.pitches = [pitch + other for pitch in self.pitches]
+            return new_note
         else:
             return copy(self)
 
@@ -38,6 +42,7 @@ class Note:
         if self.pitches is not None:
             new_note = copy(self)
             new_note.pitches = [pitch - other for pitch in self.pitches]
+            return new_note
         else:
             return copy(self)
         
