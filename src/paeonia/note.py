@@ -8,6 +8,7 @@ import re
 from string import Template
 from IPython.display import display, Image
 import importlib
+from copy import copy
 
 class Note:
     def __init__(self, pitches=None, duration=None, velocity=0.75):
@@ -25,6 +26,20 @@ class Note:
             return Note(pitches=None, duration=self.duration)
         else:
             return Note(pitches=list(self.pitches), duration=self.duration)
+
+    def __add__(self, other):
+        if self.pitches is not None:
+            new_note = copy(self)
+            new_note.pitches = [pitch + other for pitch in self.pitches]
+        else:
+            return copy(self)
+
+    def __sub__(self, other):
+        if self.pitches is not None:
+            new_note = copy(self)
+            new_note.pitches = [pitch - other for pitch in self.pitches]
+        else:
+            return copy(self)
         
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this note.
