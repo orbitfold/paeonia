@@ -27,6 +27,64 @@ class Note:
             messages.append(Message('note_off', note=int(pitch), velocity=127, time=0))
         return messages
 
+    @staticmethod
+    def note_to_lilypond(pitch):
+        """Convert a pitch to lilypond note name with octave identifier.
+
+        Parameters
+        ----------
+        pitch: int
+            MIDI pitch
+
+        Returns
+        -------
+        str
+            Lilypond notation note
+        """
+        if pitch is None:
+            return "r"
+        conversion = {
+            0: 'c',
+            1: 'cis',
+            2: 'd',
+            3: 'dis',
+            4: 'e',
+            5: 'f',
+            6: 'fis',
+            7: 'g',
+            8: 'gis',
+            9: 'a',
+            10: 'ais',
+            11: 'b'
+        }
+        name = conversion[int(pitch) % 12]
+        octave = int(pitch) // 12 - 4
+        if octave < 0:
+            octave_identifier = "," * (-octave)
+        elif octave > 0:
+            octave_identifier = "'" * octave
+        else:
+            octave_identifier = ""
+        return name + octave_identifier
+
+    def to_lilypond(self):
+        """Return lilypond representation of this note.
+
+        Returns
+        -------
+        str
+            Lilypond representation 
+        """
+        if self.pitches is None:
+            return ""
+        elif len(self.pitches) < 2:
+            pass
+        else:
+            pass
+
+    def show(self):
+        pass
+
     def preview(self, tpb=480):
         """Preview a note using fluidsynth.
         """
