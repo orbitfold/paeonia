@@ -20,6 +20,24 @@ class Bar:
         new_notes = [copy(note) for note in self.notes]
         return Bar(notes=new_notes)
 
+    def __add__(self, other):
+        if isinstance(other, Bar):
+            self_copy = copy(self)
+            for note in other.notes:
+                self_copy.notes.append(note)
+            return self_copy
+        else:
+            new_bar = Bar()
+            for note in self.notes:
+                new_bar.append(note + other)
+            return new_bar
+
+    def __sub__(self, other):
+        new_bar = Bar()
+        for note in self.notes:
+            new_bar.append(note - other)
+        return new_bar
+
     def add_note(self, note):
         """Append a new note to the bar.
 
