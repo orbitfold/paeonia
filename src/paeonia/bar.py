@@ -16,6 +16,10 @@ class Bar:
         else:
             self.notes = notes
 
+    def __copy__(self):
+        new_notes = [copy(note) for note in self.notes]
+        return Bar(notes=new_notes)
+
     def add_note(self, note):
         """Append a new note to the bar.
 
