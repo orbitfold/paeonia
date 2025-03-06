@@ -46,7 +46,7 @@ class Note:
         new_note.duration *= other
         return new_note
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         new_note = copy(self)
         new_note.duration /= other
         return new_note

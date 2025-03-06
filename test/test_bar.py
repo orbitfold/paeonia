@@ -20,3 +20,4 @@ def test_pitch_repeat():
     bar2 = bar1.pitch_repeat([2, 3, 1])
     bar3 = parse("C' C A, A A R B B C' C C")
     #assert(bar1 == bar2)
+

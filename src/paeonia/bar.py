@@ -45,7 +45,7 @@ class Bar:
             new_bar.notes.append(note * other)
         return new_bar
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         new_bar = Bar()
         for note in self.notes:
             new_bar.notes.append(note / other)
