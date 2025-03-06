@@ -8,6 +8,7 @@ import importlib
 import tempfile
 from IPython.display import display, Image
 from copy import copy
+from itertools import cycle
 
 class Bar:
     def __init__(self, notes=None):
@@ -48,6 +49,31 @@ class Bar:
         new_bar = Bar()
         for note in self.notes:
             new_bar.notes.append(note / other)
+        return new_bar
+
+    def pitch_repeat(self, times):
+        """Repeat pitches in the bar specified number of times while keeping
+        the same rhythm (the durations from the original bar will be cycled).
+
+        Parameters
+        ----------
+        times: list
+            A list with repeat values (will be cycled if it runs out)
+
+        Returns
+        -------
+        Bar
+            A new bar with pitches repeated
+        """
+        durations = cycle([note.duration for note in self.notes])
+        times = cycle(times)
+        pitches = [note.pitches for note in self.notes]
+        new_bar = Bar()
+        for pitch in pitches:
+            n = next(times)
+            for _ in range(n):
+                d = next(durations)
+                new_bar.notes.append(Note(pitches=pitch, duration=d))
         return new_bar
 
     def repeat(self, times):
