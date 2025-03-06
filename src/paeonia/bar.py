@@ -73,13 +73,10 @@ class Bar:
         new_bar = Bar()
         for pitch in pitches:
             if pitch is None:
-                d = next(durations)
-                new_bar.notes.append(Note(pitches=None, duration=d))
+                new_bar.notes.append(Note(pitches=None, duration=next(durations)))
             else:
-                n = next(times)
-                for _ in range(n):
-                    d = next(durations)
-                    new_bar.notes.append(Note(pitches=pitch, duration=d))
+                for _ in range(next(times)):
+                    new_bar.notes.append(Note(pitches=pitch, duration=next(durations)))
         return new_bar
 
     def repeat(self, times):
