@@ -29,14 +29,36 @@ class Bar:
         else:
             new_bar = Bar()
             for note in self.notes:
-                new_bar.append(note + other)
+                new_bar.notes.append(note + other)
             return new_bar
 
     def __sub__(self, other):
         new_bar = Bar()
         for note in self.notes:
-            new_bar.append(note - other)
+            new_bar.notes.append(note - other)
         return new_bar
+
+    def __mul__(self, other):
+        new_bar = Bar()
+        for note in self.notes:
+            new_bar.notes.append(note * other)
+        return new_bar
+
+    def __div__(self, other):
+        new_bar = Bar()
+        for note in self.notes:
+            new_bar.notes.append(note / other)
+        return new_bar
+
+    def span(self):
+        """"Return the span of the bar (sum of duration of all notes).
+
+        Returns
+        -------
+        Fraction
+            Sum of the durations of the notes in the bar
+        """
+        return sum([note.duration for note in self.notes])
 
     def add_note(self, note):
         """Append a new note to the bar.
