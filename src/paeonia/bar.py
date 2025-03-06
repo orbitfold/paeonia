@@ -51,6 +51,15 @@ class Bar:
             new_bar.notes.append(note / other)
         return new_bar
 
+    def __getitem__(self, i):
+        return self.notes[i]
+
+    def __setitem__(self, i, note):
+        self.notes[i] = note
+
+    def __len__(self):
+        return len(self.notes)
+
     def pitch_repeat(self, times):
         """Repeat pitches in the bar specified number of times while keeping
         the same rhythm (the durations from the original bar will be cycled).

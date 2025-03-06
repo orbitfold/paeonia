@@ -10,6 +10,15 @@ class Voice:
         else:
             self.bars = bars
 
+    def __getitem__(self, i):
+        return self.bars[i]
+
+    def __setitem__(self, i, bar):
+        self.bars[i] = bar
+
+    def __len__(self):
+        return len(self.bars)
+
     def add_bar(self, bar):
         """Add a new bar to this voice.
 
