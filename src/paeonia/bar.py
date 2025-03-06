@@ -54,6 +54,8 @@ class Bar:
     def pitch_repeat(self, times):
         """Repeat pitches in the bar specified number of times while keeping
         the same rhythm (the durations from the original bar will be cycled).
+        This is a deceptively powerful method that can result in interesting
+        generative melodies if the times list is chosen appropriately.
 
         Parameters
         ----------
