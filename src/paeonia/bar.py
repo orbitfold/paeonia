@@ -50,6 +50,24 @@ class Bar:
             new_bar.notes.append(note / other)
         return new_bar
 
+    def repeat(self, times):
+        """Repeat the bar multiple times and append to itself.
+
+        Parameters
+        ----------
+        times: int
+            How many times to repeat the bar
+
+        Returns
+        -------
+        Bar
+            A new bar with the contents repeatest
+        """
+        new_bar = Bar()
+        for _ in range(times):
+            new_bar = new_bar + self
+        return new_bar
+
     def span(self):
         """"Return the span of the bar (sum of duration of all notes).
 
