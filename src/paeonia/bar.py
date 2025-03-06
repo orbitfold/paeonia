@@ -123,6 +123,31 @@ class Bar:
         """
         self.notes.append(note)
 
+    def pitch_variant(self, fn):
+        """General pitch variant method. Applies a given function to the pitches in bar.
+        Durations and rests are unaffected.
+
+        Parameters
+        ----------
+        fn: function
+            Takes a list of pitches, returns a list of pitches of the same length
+
+        Returns
+        -------
+        Bar
+            New, processed bar
+        """
+        new_bar = Bar()
+        pitches = [note.pitches for note in self if note.pitches is not None]
+        new_pitches = fn(pitches)
+        assert(len(pitches) == len(new_pitches))
+        for note in self:
+            if note.pitches is None:
+                new_bar.add_note(copy(note))
+            else:
+                new_bar.add_note(Note(pitches=new_pitches.pop(0), duration=note.duration))
+        return new_bar
+
     def retrograde(self):
         """Return a bar with a retrograde pitch variant.
         Durations are unaffected.
@@ -132,15 +157,7 @@ class Bar:
         Bar
             A fresh new bar with pitches in reverse order
         """
-        new_bar = Bar()
-        pitches = [note.pitches for note in self.notes if note.pitches is not None]
-        reversed_pitches = list(reversed(pitches))
-        for note in self.notes:
-            if note.pitches is None:
-                new_bar.add_note(copy(note))
-            else:
-                new_bar.add_note(Note(pitches=reversed_pitches.pop(0), duration=note.duration))
-        return new_bar
+        return self.pitch_variant(lambda pitch_list: list(reversed(pitch_list)))
 
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this bar.

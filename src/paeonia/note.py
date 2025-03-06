@@ -25,6 +25,24 @@ class Note:
     def __eq__(self, other):
         return self.pitches == other.pitches and self.duration == other.duration
 
+    def __lt__(self, other):
+        if self.pitches is None or other.pitches is None:
+            return False
+        for p1 in self.pitches:
+            for p2 in other.pitches:
+                if p1 >= p2:
+                    return False
+        return True
+
+    def __gt__(self, other):
+        if self.pitches is None or other.pitches is None:
+            return False
+        for p1 in self.pitches:
+            for p2 in other.pitches:
+                if p1 <= p2:
+                    return False
+        return True
+
     def __add__(self, other):
         if self.pitches is not None:
             new_note = copy(self)
