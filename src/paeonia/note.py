@@ -40,6 +40,16 @@ class Note:
             return new_note
         else:
             return copy(self)
+
+    def __mul__(self, other):
+        new_note = copy(self)
+        new_note.duration *= other
+        return new_note
+
+    def __div__(self, other):
+        new_note = copy(self)
+        new_note.duration /= other
+        return new_note
         
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this note.
