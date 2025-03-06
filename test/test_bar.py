@@ -16,5 +16,7 @@ def test_retrograde():
     assert(durations1 == durations2)
     
 def test_pitch_repeat():
-    bar1 = parse("C'2. A,4 R B2 C'")
+    bar1 = parse("C' A, R B C'")
     bar2 = bar1.pitch_repeat([2, 3, 1])
+    bar3 = parse("C' C A, A A R B B C' C C")
+    #assert(bar1 == bar2)
