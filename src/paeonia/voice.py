@@ -39,3 +39,4 @@ class Voice:
         sf_file = download_sf2()
         subprocess.run(['fluidsynth', '-i', sf_file, midi_file])
         os.remove(midi_file)
+        return self

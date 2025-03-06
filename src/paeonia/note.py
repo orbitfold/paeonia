@@ -151,6 +151,7 @@ class Note:
             subprocess.run(['lilypond', '-dpreview', '-dresolution=300', '--loglevel=ERROR',
                             '-fpng', os.path.join(tmpdir, 'notation.ly')], cwd=tmpdir)
             display(Image(filename=os.path.join(tmpdir, 'notation.png')))
+        return self
 
 
     def play(self, tpb=480):
@@ -163,4 +164,5 @@ class Note:
         subprocess.run(['fluidsynth', '-i', sf_file, midi_file],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         os.remove(midi_file)
+        return self
 
