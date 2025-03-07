@@ -10,6 +10,7 @@ import tempfile
 from IPython.display import display, Image
 from copy import copy
 from itertools import cycle
+from fractions import Fraction
 
 class Bar:
     def __init__(self, notes=None):
@@ -23,6 +24,9 @@ class Bar:
     def __copy__(self):
         new_notes = [copy(note) for note in self.notes]
         return Bar(notes=new_notes)
+
+    def __eq__(self, other):
+        return all(note1 == note2 for note1, note2 in zip(self, other))
 
     def __add__(self, other):
         if isinstance(other, Bar):
@@ -74,6 +78,12 @@ class Bar:
 
     def __len__(self):
         return len(self.notes)
+
+    def __str__(self):
+        return self.to_paeonia()
+
+    def __repr__(self):
+        return f"Bar(\"{str(self)}\")"
 
     def pitch_repeat(self, times):
         """Repeat pitches in the bar specified number of times while keeping
@@ -186,8 +196,28 @@ class Bar:
                 offset = 0
         return messages, offset
 
+    def to_paeonia(self):
+        """Return paeonia notation representation of this bar.
+
+        Returns
+        -------
+        str
+            Lilypond notation representing all the notes in the bar
+        """
+        octave = 0
+        duration = Fraction("1/4")
+        note_repr, octave = self[0].to_paeonia(previous_octave=octave, previous_duration=duration)
+        duration = self[0].duration
+        result = note_repr
+        for note in self[1:]:
+            note_repr, octave = note.to_paeonia(previous_octave=octave, previous_duration=duration)
+            duration = note.duration
+            result += " " + note_repr
+        return result
+            
+
     def to_lilypond(self):
-        """Return lilypond notation representaiton of this bar.
+        """Return lilypond notation representation of this bar.
 
         Returns
         -------

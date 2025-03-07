@@ -10,6 +10,7 @@ from string import Template
 from IPython.display import display, Image
 import importlib
 from copy import copy
+from fractions import Fraction
 
 class Note:
     def __init__(self, pitches=None, duration=None, velocity=0.75):
@@ -87,6 +88,49 @@ class Note:
         return messages
 
     @staticmethod
+    def note_to_paeonia(pitch, previous_octave=0):
+        """Convert a pitch to paeonia notation with octave identifier.
+
+        Parameters
+        ----------
+        pitch: int
+            MIDI pitch
+        octave: int
+            Previous octave
+
+        Returns
+        -------
+        str, int 
+            Paeonia notation note and octave index
+        """
+        if pitch is None:
+            return "R"
+        conversion = {
+            0: 'C',
+            1: 'C#',
+            2: 'D',
+            3: 'D#',
+            4: 'E',
+            5: 'F',
+            6: 'F#',
+            7: 'G',
+            8: 'G#',
+            9: 'A',
+            10: 'A#',
+            11: 'B'
+        }
+        name = conversion[int(pitch) % 12]
+        octave = int(pitch) // 12 - 4
+        adjusted_octave = octave - previous_octave
+        if adjusted_octave < 0:
+            octave_identifier = "," * (-adjusted_octave)
+        elif adjusted_octave > 0:
+            octave_identifier = "'" * adjusted_octave
+        else:
+            octave_identifier = ""
+        return name + octave_identifier, octave
+
+    @staticmethod
     def note_to_lilypond(pitch):
         """Convert a pitch to lilypond note name with octave identifier.
 
@@ -148,6 +192,32 @@ class Note:
             no_dot = d // 2
             n_dots = n // 2
             return f"{no_dot}" + "." * n_dots
+
+    def to_paeonia(self, previous_octave=0, previous_duration=Fraction("1/4")):
+        """Return paeonia representation of this note.
+
+        Returns
+        -------
+        str
+            paeonia representaiton
+        """
+        duration = Note.duration_to_lilypond(self.duration) if self.duration != previous_duration else ""
+        if self.pitches is None:
+            return "R" + duration, previous_octave
+        elif len(self.pitches) < 2:
+            note_repr, octave = Note.note_to_paeonia(self.pitches[0], previous_octave=previous_octave)
+            return note_repr + duration, octave
+        else:
+            result = "<"
+            octave = previous_octave
+            note_repr, octave = Note.note_to_paeonia(self.pitches[0], previous_octave=octave)
+            result += note_repr
+            for pitch in self.pitches[1:]:
+                note_repr, octave = Note.note_to_paeonia(pitch, previous_octave=octave)
+                result += " " + note_repr
+            result += ">"
+            result += duration
+            return result, octave
 
     def to_lilypond(self):
         """Return lilypond representation of this note.

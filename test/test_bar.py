@@ -13,6 +13,12 @@ def test_retrograde():
     durations2 = [note.duration for note in bar2.notes]
     assert(pitches1 == list(reversed(pitches2)))
     assert(durations1 == durations2)
+
+def test_repr():
+    paeonia_notation = "C#'2. A <A B C> C'4 R B,"
+    bar1 = Bar(paeonia_notation)
+    assert(str(bar1) == paeonia_notation)
+    assert(eval(repr(bar1)) == bar1)
     
 def test_pitch_repeat():
     bar1 = Bar("C' A, R B C'")
