@@ -52,7 +52,15 @@ class Bar:
         return new_bar
 
     def __getitem__(self, i):
-        return self.notes[i]
+        if isinstance(i, slice):
+            new_bar = Bar()
+            for j in range(0 if i.start is None else i.start,
+                           len(self) if i.stop is None else i.stop,
+                           1 if i.step is None else i.step):
+                new_bar.add_note(self[j])
+            return new_bar
+        else:
+            return self.notes[i]
 
     def __setitem__(self, i, note):
         self.notes[i] = note

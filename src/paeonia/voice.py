@@ -11,7 +11,15 @@ class Voice:
             self.bars = bars
 
     def __getitem__(self, i):
-        return self.bars[i]
+        if isinstance(i, slice):
+            new_voice = Voice()
+            for j in range(0 if i.start is None else i.start,
+                           len(self) if i.stop is None else i.stop,
+                           1 if i.step is None else i.step):
+                new_voice.add_bar(self[j])
+            return new_voice
+        else:
+            return self.bars[i]
 
     def __setitem__(self, i, bar):
         self.bars[i] = bar
