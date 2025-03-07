@@ -1,5 +1,6 @@
 from mido import Message, MetaMessage
 from paeonia.utils import download_sf2, message_list_to_midi_file
+import paeonia
 from paeonia.parser import parse
 import tempfile
 import subprocess
@@ -11,6 +12,7 @@ from IPython.display import display, Image
 import importlib
 from copy import copy
 from fractions import Fraction
+import random
 
 class Note:
     def __init__(self, pitches=None, duration=None, velocity=0.75):
@@ -83,6 +85,45 @@ class Note:
 
     def __repr__(self):
         return f"Note(\"{str(self)}\")"
+
+    def map_tonality(self, tonality, method="random", rnd=None):
+        """Map the pitches this note consists of to a tonality.
+
+        Parameters
+        ----------
+        tonality: Tonality
+            Tonality to map to.
+        method: str
+            What method to use when there are more than one candidate.
+        rnd: Random
+            A random number generator.
+
+        Returns
+        -------
+        Note
+            A tonality mapped note.
+        """
+        assert(method in ["up", "down", "random"])
+        if self.pitches is None:
+            return self
+        new_note = copy(self)
+        new_pitches = []
+        for pitch in self.pitches:
+            closest = tonality.closest(pitch)
+            if len(closest) == 1:
+                new_pitches.append(closest[0])
+            else:
+                if method == "up":
+                    new_pitches.append(max(closest))
+                elif method == "down":
+                    new_pitches.append(min(closest))
+                else:
+                    if rnd is None:
+                        new_pitches.append(random.choice(closest))
+                    else:
+                        new_pitches.append(rnd.choice(closest))
+        new_note.pitches = new_pitches
+        return new_note
       
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this note.

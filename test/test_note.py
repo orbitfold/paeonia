@@ -1,4 +1,4 @@
-from paeonia import Note
+from paeonia import Note, Tonality
 from fractions import Fraction
 
 def test_note_to_lilypond():
@@ -34,3 +34,14 @@ def test_repr():
     note = Note("C''2.")
     assert(str(note) == "C''2.")
     assert(eval(repr(note)) == note)
+
+def test_tonality_map():
+    tonality = Tonality('C', 'major')
+    note = Note("C'")
+    new_note = note.map_tonality(tonality)
+    assert(new_note == note)
+    note = Note("D#'")
+    new_note = note.map_tonality(tonality, method="up")
+    assert(new_note == Note("E'"))
+    new_note = note.map_tonality(tonality, method="down")
+    assert(new_note == Note("D'"))
