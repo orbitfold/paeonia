@@ -29,3 +29,8 @@ def test_add_sub():
     (note - 5).pitches == [55, 63]
     rest = Note(pitches=None, duration=Fraction('3/4'))
     assert(rest == (rest + 2))
+
+def test_repr():
+    note = Note("C''2.")
+    assert(str(note) == "C''2.")
+    assert(eval(repr(note)) == note)

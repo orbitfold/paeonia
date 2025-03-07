@@ -16,8 +16,9 @@ class Note:
     def __init__(self, pitches=None, duration=None, velocity=0.75):
         if isinstance(pitches, str):
             notes = parse(pitches)
-            note.pitches = notes[0].pitches
-            node.duration = notes[0].duration
+            self.pitches = notes[0].pitches
+            self.duration = notes[0].duration
+            self.velocity = velocity
         else:
             self.pitches = pitches
             self.duration = duration
@@ -75,7 +76,14 @@ class Note:
         new_note = copy(self)
         new_note.duration /= other
         return new_note
-        
+
+    def __str__(self):
+        note, octave = self.to_paeonia()
+        return note
+
+    def __repr__(self):
+        return f"Note(\"{str(self)}\")"
+      
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this note.
         """
