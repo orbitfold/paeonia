@@ -1,8 +1,7 @@
 from pypeg2 import optional, List, maybe_some
-from pypeg2 import parse as parse_
+import pypeg2
 import re
-from paeonia import Note as Note_
-from paeonia import Bar
+import paeonia
 from fractions import Fraction
 
 LETTER_TO_PITCH = {
@@ -63,7 +62,7 @@ class Note(List):
                 duration = c.get_duration()
         pitch = 48 + octave * 12 + pitch
         self.octave = octave
-        return Note_(pitches=[pitch], duration=duration)
+        return paeonia.Note(pitches=[pitch], duration=duration)
 
 class Rest(List):
     grammar = "R", optional(Duration)
@@ -71,9 +70,9 @@ class Rest(List):
     def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
         self.octave = octave
         if self[0] is None:
-            return Note_(pitches=None, duration=duration)
+            return paeonia.Note(pitches=None, duration=duration)
         else:
-            return Note_(pitches=None, duration=self[0].get_duration())
+            return paeonia.Note(pitches=None, duration=self[0].get_duration())
 
 # Define a chord (list of notes enclosed in < >, optionally followed by a duration)
 class Chord(List):
@@ -90,14 +89,14 @@ class Chord(List):
             else:
                 duration = note.get_duration()
         self.octave = octave
-        return Note_(pitches=chord, duration=duration)
+        return paeonia.Note(pitches=chord, duration=duration)
 
 # Define a sequence of notes and chords
 class Music(List):
     grammar = maybe_some([Note, Chord, Rest])
 
 def parse(notation, relative=True):
-    parsed_bar = parse_(notation, Music)
+    parsed_bar = pypeg2.parse(notation, Music)
     notes = []
     octave = 0
     duration = Fraction('1/4')
@@ -106,7 +105,4 @@ def parse(notation, relative=True):
         octave = event.octave
         duration = parsed_note.duration
         notes.append(parsed_note)
-    if len(notes) == 1:
-        return notes[0]
-    elif len(notes) > 1:
-        return Bar(notes)
+    return notes

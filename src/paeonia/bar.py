@@ -1,5 +1,6 @@
 from mido import Message, MetaMessage
 from paeonia.utils import download_sf2, message_list_to_midi_file
+from paeonia.parser import parse
 from paeonia import Note
 import subprocess
 import os
@@ -14,6 +15,8 @@ class Bar:
     def __init__(self, notes=None):
         if notes is None:
             self.notes = []
+        elif isinstance(notes, str):
+            self.notes = parse(notes)
         else:
             self.notes = notes
 

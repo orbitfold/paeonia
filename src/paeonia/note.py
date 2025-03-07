@@ -1,5 +1,6 @@
 from mido import Message, MetaMessage
 from paeonia.utils import download_sf2, message_list_to_midi_file
+from paeonia.parser import parse
 import tempfile
 import subprocess
 import time
@@ -12,9 +13,14 @@ from copy import copy
 
 class Note:
     def __init__(self, pitches=None, duration=None, velocity=0.75):
-        self.pitches = pitches
-        self.duration = duration
-        self.velocity = velocity
+        if isinstance(pitches, str):
+            notes = parse(pitches)
+            note.pitches = notes[0].pitches
+            node.duration = notes[0].duration
+        else:
+            self.pitches = pitches
+            self.duration = duration
+            self.velocity = velocity
 
     def __copy__(self):
         if self.pitches is None:
