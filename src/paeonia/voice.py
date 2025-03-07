@@ -2,6 +2,7 @@ from mido import MetaMessage
 from paeonia.utils import download_sf2, message_list_to_midi_file
 import subprocess
 import os
+from copy import copy
 
 class Voice:
     def __init__(self, bars=None):
@@ -16,7 +17,7 @@ class Voice:
             for j in range(0 if i.start is None else i.start,
                            len(self) if i.stop is None else i.stop,
                            1 if i.step is None else i.step):
-                new_voice.add_bar(self[j])
+                new_voice.add_bar(copy(self[j]))
             return new_voice
         else:
             return self.bars[i]

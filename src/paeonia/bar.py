@@ -25,7 +25,11 @@ class Bar:
         if isinstance(other, Bar):
             self_copy = copy(self)
             for note in other.notes:
-                self_copy.notes.append(note)
+                self_copy.notes.append(copy(note))
+            return self_copy
+        elif isinstance(other, Note):
+            self_copy = copy(self)
+            self_copy.add_note(other)
             return self_copy
         else:
             new_bar = Bar()
