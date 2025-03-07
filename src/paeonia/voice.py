@@ -3,6 +3,10 @@ from paeonia.utils import download_sf2, message_list_to_midi_file
 import subprocess
 import os
 from copy import copy
+from string import Template
+import importlib
+import tempfile
+from IPython.display import display, Image
 
 class Voice:
     def __init__(self, bars=None):
@@ -48,6 +52,29 @@ class Voice:
             message_stream += messages
         return message_stream
 
+    def to_lilypond(self):
+        """Return lilypond notation representing this voice.
+
+        Returns
+        -------
+        str
+            Lilypond notation representing the voice
+        """
+        return " ".join([bar.to_lilypond() for bar in self])
+
+    def show(self):
+        """Attempts to render a lilypond file and display it on a Jupyter notebook.
+        """
+        template = Template(importlib.resources.open_text('paeonia.data', 'voice_template.ly').read())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            notation = template.substitute(notation=self.to_lilypond())
+            with open(os.path.join(tmpdir, 'notation.ly'), 'w') as fd:
+                fd.write(notation)
+            subprocess.run(['lilypond', '-dpreview', '-dresolution=300', '--loglevel=ERROR',
+                            '-fpng', os.path.join(tmpdir, 'notation.ly')], cwd=tmpdir)
+            display(Image(filename=os.path.join(tmpdir, 'notation.png')))
+        return self
+
     def play(self, tpb=480):
         """Preview a note using fluidsynth.
         """
@@ -55,6 +82,7 @@ class Voice:
         messages.append(MetaMessage('end_of_track', time=0))
         midi_file = message_list_to_midi_file(messages, tpb)
         sf_file = download_sf2()
-        subprocess.run(['fluidsynth', '-i', sf_file, midi_file])
+        subprocess.run(['fluidsynth', '-i', sf_file, midi_file],
+                       stdout=subprocess.DEVNULL)
         os.remove(midi_file)
         return self

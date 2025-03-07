@@ -191,7 +191,7 @@ class Bar:
         str
             Lilypond notation representing all the notes in the bar
         """
-        return " ".join([note.to_lilypond() for note in self.notes])
+        return " ".join([note.to_lilypond() for note in self])
 
     def show(self):
         """Attempts to render a lilypond file and display it on a Jupyter notebook.
@@ -214,6 +214,6 @@ class Bar:
         midi_file = message_list_to_midi_file(messages, tpb)
         sf_file = download_sf2()
         subprocess.run(['fluidsynth', '-i', sf_file, midi_file],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                       stdout=subprocess.DEVNULL)
         os.remove(midi_file)
         return self

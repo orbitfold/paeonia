@@ -180,7 +180,7 @@ class Note:
         midi_file = message_list_to_midi_file(messages, tpb)
         sf_file = download_sf2()
         subprocess.run(['fluidsynth', '-i', sf_file, midi_file],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                       stdout=subprocess.DEVNULL)
         os.remove(midi_file)
         return self
 
