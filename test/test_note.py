@@ -45,3 +45,7 @@ def test_tonality_map():
     assert(new_note == Note("E'"))
     new_note = note.map_tonality(tonality, method="down")
     assert(new_note == Note("D'"))
+    note = Note("<C' D# G>")
+    new_note = note.map_tonality(tonality, method="up")
+    assert(new_note == Note("<C' E G>"))
+    
