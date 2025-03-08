@@ -86,7 +86,7 @@ class Note:
     def __repr__(self):
         return f"Note(\"{str(self)}\")"
 
-    def map_tonality(self, tonality, method="random", rnd=None):
+    def map_tonality(self, tonality, method="diff", previous_pitch=None, rnd=None):
         """Map the pitches this note consists of to a tonality.
 
         Parameters
@@ -103,7 +103,9 @@ class Note:
         Note
             A tonality mapped note.
         """
-        assert(method in ["up", "down", "random"])
+        assert(method in ["up", "down", "random", "diff"])
+        if rnd is None:
+            rnd = random
         if self.pitches is None:
             return self
         new_note = copy(self)
@@ -117,11 +119,10 @@ class Note:
                     new_pitches.append(max(closest))
                 elif method == "down":
                     new_pitches.append(min(closest))
+                elif method == "diff":
+                    pass
                 else:
-                    if rnd is None:
-                        new_pitches.append(random.choice(closest))
-                    else:
-                        new_pitches.append(rnd.choice(closest))
+                    new_pitches.append(rnd.choice(closest))
         new_note.pitches = new_pitches
         return new_note
       

@@ -5,10 +5,11 @@ class Tonality:
         intervals = [2, 2, 1, 2, 2, 2, 1]
         interval_cycle = cycle(intervals)
         self.pitches = [0]
-        last_pitch = 0
-        while last_pitch < 127:
-            self.pitches.append(self.pitches[-1] + next(interval_cycle))
-            last_pitch = self.pitches[-1]
+        while True:
+            new_pitch = self.pitches[-1] + next(interval_cycle)
+            if new_pitch > 127:
+                break
+            self.pitches.append(new_pitch)
 
     def closest(self, pitch):
         """Find pitches in the tonality closest to the pitch given.
