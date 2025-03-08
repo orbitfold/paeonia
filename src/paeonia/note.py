@@ -119,8 +119,6 @@ class Note:
                     new_pitches.append(max(closest))
                 elif method == "down":
                     new_pitches.append(min(closest))
-                elif method == "diff":
-                    pass
                 else:
                     new_pitches.append(rnd.choice(closest))
         new_note.pitches = new_pitches
