@@ -1,8 +1,11 @@
-from paeonia import Bar
+from paeonia import Bar, Tonality
 
 def test_to_lilypond():
     bar = Bar("C#4. D''8.. R2. Bb,16 <F# A# C#'>2. G, R E4.. <A C' E>1")
     assert(bar.to_lilypond() == "cis4. d''4 r2. ais'16 <fis' ais' cis''>2. g'2. r2. e'2 <a' c'' e''>1")
+
+def test_eq():
+    assert(Bar("R") == Bar("R"))
 
 def test_retrograde():
     bar1 = Bar("Bb'2. A <A B C> C'4 R B,")
@@ -49,3 +52,12 @@ def test_random_order():
     bar1 = Bar("C2 E D4 G R F")
     assert(bar1.random_order() != bar1)
     assert(bar1.random_order().ascending() == Bar("C2 D E4 F R G"))
+
+def test_map_tonality():
+    bar1 = Bar("C2 Eb D4 G R F#")
+    tonality = Tonality()
+    bar2 = bar1.map_tonality(tonality, method="up")
+    assert(bar2 == Bar("C2 E D4 G R G"))
+    bar2 = bar1.map_tonality(tonality, method="down")
+    assert(bar2 == Bar("C2 D D4 G R F"))
+    

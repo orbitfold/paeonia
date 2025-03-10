@@ -249,6 +249,25 @@ class Bar:
             if velocities:
                 note.velocity = next_note.velocity
 
+    def map_tonality(self, tonality, method="random", seed=7):
+        """Map all notes in the bar to a tonality.
+
+        Parameters
+        ----------
+        tonality: Tonality
+            An instance of Tonality.
+
+        Returns
+        -------
+        Bar
+            A bar with notes mapped to a tonality.
+        """
+        new_bar = Bar()
+        rnd = random.Random(seed)
+        for note in self:
+            new_bar += note.map_tonality(tonality, method=method, rnd=rnd)
+        return new_bar
+
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this bar.
         """

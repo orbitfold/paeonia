@@ -86,7 +86,7 @@ class Note:
     def __repr__(self):
         return f"Note(\"{str(self)}\")"
 
-    def map_tonality(self, tonality, method="diff", previous_pitch=None, rnd=None):
+    def map_tonality(self, tonality, method="random", rnd=None):
         """Map the pitches this note consists of to a tonality.
 
         Parameters
@@ -103,7 +103,7 @@ class Note:
         Note
             A tonality mapped note.
         """
-        assert(method in ["up", "down", "random", "diff"])
+        assert(method in ["up", "down", "random"])
         if rnd is None:
             rnd = random
         if self.pitches is None:
