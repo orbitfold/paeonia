@@ -184,6 +184,39 @@ class Bar:
         """
         return self.pitch_variant(lambda pitch_list: list(reversed(pitch_list)))
 
+    def cycle(self):
+        """Create a Note generator that returns the notes in this bar in a loop.
+
+        Returns
+        -------
+        Generator
+            Returns an infinite stream of repeating notes
+        """
+        return cycle(self)
+
+    def take(self, generator, pitches=False, durations=False, velocities=False):
+        """Take specified note properties from a Note generator.
+
+        Parameters
+        ----------
+        generator: Generator
+            A Note generator
+        pitches: bool
+            Whether to take pitches
+        durations: bool
+            Whether to take durations
+        velocities: bool
+            Whether to take velocities
+        """
+        for note in self:
+            next_note = next(generator)
+            if pitches:
+                note.pitches = list(next_note.pitches)
+            if durations:
+                note.duration = next_note.duration
+            if velocities:
+                note.velocity = next_note.velocity
+
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this bar.
         """

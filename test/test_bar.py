@@ -26,3 +26,10 @@ def test_pitch_repeat():
     bar3 = Bar("C' C A, A A R B B C' C C")
     #assert(bar1 == bar2)
 
+def test_take():
+    bar1 = Bar("C D E F G")
+    bar2 = Bar("C2 G, F")
+    bar1.take(bar2.cycle(), pitches=True)
+    bar2.take(bar1.cycle(), durations=True)
+    assert(str(bar1) == "C G, F C' G,")
+    assert(str(bar2) == "C G, F")
