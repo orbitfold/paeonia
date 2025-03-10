@@ -11,6 +11,7 @@ from IPython.display import display, Image
 from copy import copy
 from itertools import cycle
 from fractions import Fraction
+import random
 
 class Bar:
     def __init__(self, notes=None):
@@ -179,6 +180,41 @@ class Bar:
             A fresh new bar with pitches in reverse order
         """
         return self.pitch_variant(lambda pitch_list: list(reversed(pitch_list)))
+
+    def ascending(self):
+        """Return a bar with pitches in ascending order.
+
+        Returns
+        -------
+        Bar
+            A new bar with pitches in ascending order.
+        """
+        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list, key=max)))
+
+    def descending(self):
+        """Returns a bar with pitches in descending order.
+
+        Returns
+        -------
+        Bar
+            A new bar with pitches in descending order.
+        """
+        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list, key=lambda x: -min(x))))
+
+    def random_order(self, seed=7):
+        """Returns a bar with pitches in random order.
+
+        Returns
+        -------
+        Bar
+            A new bar with pitches in random order.
+        """
+        def shuffle(pitch_list):
+            rnd = random.Random(seed)
+            new_pitch_list = list(pitch_list)
+            rnd.shuffle(new_pitch_list)
+            return new_pitch_list
+        return self.pitch_variant(shuffle)
 
     def cycle(self):
         """Create a Note generator that returns the notes in this bar in a loop.

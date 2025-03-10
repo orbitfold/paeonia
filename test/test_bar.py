@@ -34,3 +34,18 @@ def test_take():
     bar2.take(bar1.cycle(), durations=True)
     assert(str(bar1) == "C G, F C' G,")
     assert(str(bar2) == "C G, F")
+
+def test_ascending():
+    bar1 = Bar("C2 E D4 G R F")
+    asc = bar1.ascending()
+    assert(asc == Bar("C2 D E4 F R G"))
+
+def test_descending():
+    bar1 = Bar("C2 E D4 G R F")
+    desc = bar1.descending()
+    assert(desc == Bar("G2 F E4 D R C"))
+
+def test_random_order():
+    bar1 = Bar("C2 E D4 G R F")
+    assert(bar1.random_order() != bar1)
+    assert(bar1.random_order().ascending() == Bar("C2 D E4 F R G"))
