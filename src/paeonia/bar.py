@@ -85,30 +85,26 @@ class Bar:
     def __repr__(self):
         return f"Bar(\"{str(self)}\")"
 
-    def pitch_repeat(self, times):
-        """Repeat pitches in the bar specified number of times while keeping
-        the same rhythm (the durations from the original bar will be cycled).
-        This is a deceptively powerful method that can result in interesting
-        generative melodies if the times list is chosen appropriately.
+    def note_repeat(self, times):
+        """Repeat notes according to the pattern provided.
 
         Parameters
         ----------
         times: list
-            A list with repeat values (will be cycled if it runs out)
+            A list with repeat values (will be cycled if it runs out).
 
         Returns
         -------
-        Bar
-            A new bar with pitches repeated
+        Generator
+            A generator of repeated notes.
         """
-        durations = cycle([note.duration for note in self.notes])
         times = cycle(times)
-        pitches = [note.pitches for note in self.notes]
-        new_bar = Bar()
-        for pitch in pitches:
-            for _ in range(next(times)):
-                new_bar.add_note(Note(pitches=pitch, duration=next(durations)))
-        return new_bar
+        notes = cycle(self)
+        while True:
+            time = next(times)
+            note = next(notes)
+            for _ in range(time):
+                yield note
 
     def repeat(self, times):
         """Repeat the bar multiple times and append to itself.

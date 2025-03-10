@@ -20,11 +20,12 @@ def test_repr():
     assert(str(bar1) == paeonia_notation)
     assert(eval(repr(bar1)) == bar1)
     
-def test_pitch_repeat():
-    bar1 = Bar("C' A, R B C'")
-    bar2 = bar1.pitch_repeat([2, 3, 1])
-    bar3 = Bar("C' C A, A A R B B C' C C")
-    #assert(bar1 == bar2)
+def test_note_repeat():
+    bar1 = Bar("C D E F G")
+    generator = bar1.note_repeat([2, 3, 1])
+    bar2 = Bar(" ".join(["R" for _ in range(16)]))
+    bar2.take(generator, pitches=True)
+    assert(bar2 == Bar("C C D D D E F F G G G C D D E E"))
 
 def test_take():
     bar1 = Bar("C D E F G")
