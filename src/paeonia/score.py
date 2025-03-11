@@ -58,7 +58,7 @@ class Score:
             score_lilypond = []
             for voice_name in self.voices:
                 score_lilypond.append("\\new Staff")
-                score_lilypond.append(f"{{ \clef {self.clefs[voice_name]} {self.voices[voice_name].to_lilypond()} \\bar \"|.\" \\break}}")
+                score_lilypond.append(f"{{ \\clef {self.clefs[voice_name]} {self.voices[voice_name].to_lilypond()} \\bar \"|.\" \\break}}")
             score_notation = "\n".join(score_lilypond)
             notation = template.substitute(notation=score_notation)
             with open(os.path.join(tmpdir, 'notation.ly'), 'w') as fd:
