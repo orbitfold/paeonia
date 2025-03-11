@@ -67,7 +67,7 @@ class Bar:
         if isinstance(i, slice):
             new_bar = Bar()
             for j in range(0 if i.start is None else i.start,
-                           len(self) if i.stop is None else i.stop,
+                           len(self) if i.stop is None else (i.stop if i.stop > 0 else len(self) + i.stop),
                            1 if i.step is None else i.step):
                 new_bar.add_note(self[j])
             return new_bar
@@ -170,6 +170,17 @@ class Bar:
                 new_bar.add_note(Note(pitches=new_pitches.pop(0), duration=note.duration))
         return new_bar
 
+    def intervals(self):
+        """Get a list of intervals for this bar.
+
+        Returns
+        -------
+        list
+            A list of lists of intervals.
+        """
+        notes = [note for note in self if note.pitches is not None]
+        return [min(b.pitches) - min(a.pitches) for a, b in zip(notes[:-1], notes[1:])]
+
     def retrograde(self):
         """Return a bar with a retrograde pitch variant.
         Durations are unaffected.
@@ -180,6 +191,22 @@ class Bar:
             A fresh new bar with pitches in reverse order
         """
         return self.pitch_variant(lambda pitch_list: list(reversed(pitch_list)))
+
+    def inversion(self):
+        """Return a bar with intervals inverted.
+
+        Returns
+        -------
+        Bar
+            A bar with invervals inverted
+        """
+        def invert(pitch_list):
+            intervals = self.intervals()
+            pitches = [pitch_list[0]]
+            for interval in intervals:
+                pitches.append([p - interval for p in pitches[-1]])
+            return pitches
+        return self.pitch_variant(invert)
 
     def ascending(self):
         """Return a bar with pitches in ascending order.

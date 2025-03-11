@@ -61,3 +61,10 @@ def test_map_tonality():
     bar2 = bar1.map_tonality(tonality, method="down")
     assert(bar2 == Bar("C2 D D4 G R F"))
     
+def test_inversion():
+    bar1 = Bar("C2 Eb D4 G R F#")
+    bar2 = bar1.inversion()
+    assert(bar2 == Bar("C2 A, A#4 F R F#"))
+    bar1 = Bar("C2 <D# G> E")
+    bar2 = bar1.inversion()
+
