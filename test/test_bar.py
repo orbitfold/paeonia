@@ -10,12 +10,7 @@ def test_eq():
 def test_retrograde():
     bar1 = Bar("Bb'2. A <A B C> C'4 R B,")
     bar2 = bar1.retrograde()
-    pitches1 = [note.pitches for note in bar1.notes if note.pitches is not None]
-    pitches2 = [note.pitches for note in bar2.notes if note.pitches is not None]
-    durations1 = [note.duration for note in bar1.notes]
-    durations2 = [note.duration for note in bar2.notes]
-    assert(pitches1 == list(reversed(pitches2)))
-    assert(durations1 == durations2)
+    assert(bar2 == Bar("B'2. C' <C, B A> A4 R A#"))
 
 def test_repr():
     paeonia_notation = "C#'2. A <A B C> C'4 R B,"
@@ -67,4 +62,6 @@ def test_inversion():
     assert(bar2 == Bar("C2 A, A#4 F R F#"))
     bar1 = Bar("C2 <D# G> E")
     bar2 = bar1.inversion()
+    assert(bar2 == Bar("C2 <A, F> G#"))
+
 

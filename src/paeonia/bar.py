@@ -145,6 +145,20 @@ class Bar:
         """
         self.notes.append(note)
 
+    def pitches(self):
+        """Returns all pitches in this bar as a single flat list.
+
+        Returns
+        -------
+        list
+             A list of numbers signifying pitches.
+        """
+        result = []
+        for note in self:
+            if note.pitches is not None:
+                result += note.pitches
+        return result
+
     def pitch_variant(self, fn):
         """General pitch variant method. Applies a given function to the pitches in bar.
         Durations and rests are unaffected.
@@ -160,14 +174,17 @@ class Bar:
             New, processed bar
         """
         new_bar = Bar()
-        pitches = [note.pitches for note in self if note.pitches is not None]
+        pitches = []
+        for note in self:
+            if note.pitches is not None:
+                pitches += note.pitches
         new_pitches = fn(pitches)
         assert(len(pitches) == len(new_pitches))
         for note in self:
             if note.pitches is None:
                 new_bar.add_note(copy(note))
             else:
-                new_bar.add_note(Note(pitches=new_pitches.pop(0), duration=note.duration))
+                new_bar.add_note(Note(pitches=[new_pitches.pop(0) for _ in note.pitches], duration=note.duration))
         return new_bar
 
     def intervals(self):
@@ -178,8 +195,8 @@ class Bar:
         list
             A list of lists of intervals.
         """
-        notes = [note for note in self if note.pitches is not None]
-        return [min(b.pitches) - min(a.pitches) for a, b in zip(notes[:-1], notes[1:])]
+        pitches = self.pitches()
+        return [b - a for a, b in zip(pitches[:-1], pitches[1:])]
 
     def retrograde(self):
         """Return a bar with a retrograde pitch variant.
@@ -202,10 +219,11 @@ class Bar:
         """
         def invert(pitch_list):
             intervals = self.intervals()
-            pitches = [pitch_list[0]]
+            pitches = self.pitches()
+            result = [pitches[0]]
             for interval in intervals:
-                pitches.append([p - interval for p in pitches[-1]])
-            return pitches
+                result.append(result[-1] - interval)
+            return result
         return self.pitch_variant(invert)
 
     def ascending(self):
@@ -216,7 +234,7 @@ class Bar:
         Bar
             A new bar with pitches in ascending order.
         """
-        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list, key=max)))
+        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list)))
 
     def descending(self):
         """Returns a bar with pitches in descending order.
@@ -226,7 +244,7 @@ class Bar:
         Bar
             A new bar with pitches in descending order.
         """
-        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list, key=lambda x: -min(x))))
+        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list, key=lambda x: -x)))
 
     def random_order(self, seed=7):
         """Returns a bar with pitches in random order.
