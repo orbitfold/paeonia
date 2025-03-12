@@ -17,6 +17,10 @@ def test_repr():
     bar1 = Bar(paeonia_notation)
     assert(str(bar1) == paeonia_notation)
     assert(eval(repr(bar1)) == bar1)
+    single_note = "C'1"
+    bar2 = Bar(single_note)
+    assert(str(bar2) == single_note)
+    assert(eval(repr(bar2)) == bar2)
     
 def test_note_repeat():
     bar1 = Bar("C D E F G")
