@@ -294,6 +294,23 @@ class Bar:
             if velocities:
                 note.velocity = next_note.velocity
 
+    def tonal_transpose(self, tonality, degrees):
+        """Transpose this bar staying in the same tonality.
+
+        Parameters
+        ----------
+        tonality: Tonality
+            Tonality we are working in.
+        degrees: int
+            How many scale degrees to shift by (up or down).
+
+        Returns
+        -------
+        Bar
+            A bar with notes tranposed.
+        """
+        return self
+
     def map_tonality(self, tonality, method="random", seed=7):
         """Map all notes in the bar to a tonality.
 

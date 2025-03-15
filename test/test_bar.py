@@ -69,7 +69,6 @@ def test_inversion():
     bar2 = bar1.inversion()
     assert(bar2 == Bar("C2 <A, F> G#"))
 
-@pytest.mark.skip()
 def test_map_melody_to_tonality():
     bar1 = Bar("C E D# A, A# C'")
     t = Tonality()
@@ -77,4 +76,10 @@ def test_map_melody_to_tonality():
     with pytest.raises(RuntimeError):
         bar2 = Bar("C <E F> D# A, A# C'")
         bar2.map_melody_to_tonality(t)
+
+def test_tonal_transpose():
+    bar1 = Bar("C D E D C")
+    t = Tonality()
+    assert(bar1.tonal_transpose(t, 1) == Bar("D E F E D"))
+    assert(bar1.tonal_transpose(t, -3) == Bar("A, B C' B, A"))
 
