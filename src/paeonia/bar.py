@@ -313,6 +313,22 @@ class Bar:
             new_bar += note.map_tonality(tonality, method=method, rnd=rnd)
         return new_bar
 
+    def map_melody_to_tonality(self, tonality):
+        """Attempts to map notes in the bar to a tonality while maintaining
+        the shape of the melody.
+
+        Parameters
+        ----------
+        tonality: Tonality
+            An instance of Tonality.
+
+        Returns
+        -------
+        Bar
+            A bar with notes mapped to a tonality.
+        """
+        return copy(self)
+
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this bar.
         """

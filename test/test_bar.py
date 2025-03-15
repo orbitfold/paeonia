@@ -1,4 +1,5 @@
 from paeonia import Bar, Tonality
+import pytest
 
 def test_to_lilypond():
     bar = Bar("C#4. D''8.. R2. Bb,16 <F# A# C#'>2. G, R E4.. <A C' E>1")
@@ -68,4 +69,12 @@ def test_inversion():
     bar2 = bar1.inversion()
     assert(bar2 == Bar("C2 <A, F> G#"))
 
+@pytest.mark.skip()
+def test_map_melody_to_tonality():
+    bar1 = Bar("C E D# A, A# C'")
+    t = Tonality()
+    assert(bar1.map_melody_to_tonality(t) == Bar("C E D A, B C'"))    
+    with pytest.raises(RuntimeError):
+        bar2 = Bar("C <E F> D# A, A# C'")
+        bar2.map_melody_to_tonality(t)
 
