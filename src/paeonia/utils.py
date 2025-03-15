@@ -8,10 +8,10 @@ from mido import MidiFile, MidiTrack
 _TRANSLATE_NOTE_NAME = {
     "C": 0,
     "C#": 1,
-    "Cb": 11
+    "Cb": 11,
     "D": 2,
     "D#": 3,
-    "Db": 1
+    "Db": 1,
     "E": 4,
     "E#": 5,
     "Eb": 3,
