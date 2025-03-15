@@ -5,7 +5,7 @@ class Tonality:
     def __init__(self, root='C', mode='ionian'):
         intervals = [2, 2, 1, 2, 2, 2, 1]
         mode_index = mode_name_to_index(mode)
-        intervals = intervals[mode_index:] + intervals[:-mode_index]
+        intervals = intervals[mode_index:] + intervals[:mode_index]
         interval_cycle = cycle(intervals)
         self.pitches = [-12 + note_name_to_pitch_class(root)]
         while True:
