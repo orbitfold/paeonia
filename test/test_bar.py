@@ -81,5 +81,6 @@ def test_tonal_transpose():
     bar1 = Bar("C D E D C")
     t = Tonality()
     assert(bar1.tonal_transpose(t, 1) == Bar("D E F E D"))
-    assert(bar1.tonal_transpose(t, -3) == Bar("A, B C' B, A"))
+    assert(bar1.tonal_transpose(t, -3) == Bar("G, A B A G"))
+
 

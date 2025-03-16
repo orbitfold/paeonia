@@ -1,4 +1,5 @@
 from itertools import cycle
+import paeonia
 from paeonia.utils import note_name_to_pitch_class, mode_name_to_index
 
 class Tonality:
@@ -26,3 +27,21 @@ class Tonality:
             closest = [x for x in self.pitches if abs(x - pitch) == d]
             if len(closest) > 0:
                 return closest
+
+    def __contains__(self, other):
+        """Check if an object is in this tonality.
+
+        Parameters
+        ----------
+        other: Note or int
+            Either a note or a pitch.
+
+        Returns
+        -------
+        Bool
+            True if this note or pitch is in this tonality, False otherwise.
+        """
+        if isinstance(other, paeonia.Note):
+            return all([p in self.pitches for p in other.pitches])
+        else:
+            return all([p in self.pitches for p in other])
