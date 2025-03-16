@@ -60,7 +60,7 @@ class Voice:
         str
             Lilypond notation representing the voice
         """
-        return " ".join([bar.to_lilypond() for bar in self])
+        return " ".join([bar.to_lilypond() for bar in self]) + " \\break"
 
     def show(self):
         """Attempts to render a lilypond file and display it on a Jupyter notebook.
@@ -70,9 +70,9 @@ class Voice:
             notation = template.substitute(notation=self.to_lilypond())
             with open(os.path.join(tmpdir, 'notation.ly'), 'w') as fd:
                 fd.write(notation)
-            subprocess.run(['lilypond', '-dpreview', '--loglevel=ERROR', '-dno-page-breaking',
+            subprocess.run(['lilypond', '--loglevel=ERROR', '-dno-page-breaking',
                             '-fpng', os.path.join(tmpdir, 'notation.ly')], cwd=tmpdir)
-            display(Image(filename=os.path.join(tmpdir, 'notation.preview.png')))
+            display(Image(filename=os.path.join(tmpdir, 'notation.png')))
         return self
 
     def play(self, tpb=480):

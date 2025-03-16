@@ -4,6 +4,8 @@
   tagline = ##f
   ragged-bottom = ##t
   ragged-last = ##t
+  indent = 0
+  paper-height = 100  
 }
 
 {
