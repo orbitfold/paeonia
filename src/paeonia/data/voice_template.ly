@@ -3,8 +3,7 @@
 \paper {
   tagline = ##f
   ragged-bottom = ##t
-  paper-height = 40
-  left-margin = 0
+  ragged-last = ##t
 }
 
 {

@@ -396,9 +396,9 @@ class Bar:
             notation = template.substitute(notation=self.to_lilypond())
             with open(os.path.join(tmpdir, 'notation.ly'), 'w') as fd:
                 fd.write(notation)
-            subprocess.run(['lilypond', '-dpreview', '-dresolution=300', '--loglevel=ERROR',
+            subprocess.run(['lilypond', '-dpreview', '--loglevel=ERROR',
                             '-fpng', os.path.join(tmpdir, 'notation.ly')], cwd=tmpdir)
-            display(Image(filename=os.path.join(tmpdir, 'notation.png')))
+            display(Image(filename=os.path.join(tmpdir, 'notation.preview.png')))
         return self
 
     def play(self, tpb=480):

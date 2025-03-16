@@ -63,7 +63,7 @@ class Score:
             notation = template.substitute(notation=score_notation)
             with open(os.path.join(tmpdir, 'notation.ly'), 'w') as fd:
                 fd.write(notation)
-            subprocess.run(['lilypond', '-dpreview', '--loglevel=ERROR',
+            subprocess.run(['lilypond', '--loglevel=ERROR',
                             '-fpng', os.path.join(tmpdir, 'notation.ly')], cwd=tmpdir)
             display(Image(filename=os.path.join(tmpdir, 'notation.png')))
         return self
