@@ -29,9 +29,33 @@ class Tonality:
                 return closest
 
     def get_pitches(self, indices):
+        """Get pitches corresponding to indices.
+
+        Parameters
+        ----------
+        indices: list of int
+            A list of integers specifying indices in the tonality.
+
+        Returns
+        -------
+        list of int
+            A list of pitches.
+        """
         return [self.pitches[i] for i in indices]
 
     def get_indices(self, pitches):
+        """Get indices corresponding to pitches.
+
+        Parameters
+        ----------
+        pitches: list of int
+            A list of pitches.
+
+        Returns
+        -------
+        list of int
+            A list of indices.
+        """
         return [self.pitches.index(pitch) for pitch in pitches]
 
     def __contains__(self, other):
