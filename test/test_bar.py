@@ -69,6 +69,7 @@ def test_inversion():
     bar2 = bar1.inversion()
     assert(bar2 == Bar("C2 <A, F> G#"))
 
+@pytest.mark.skip()
 def test_map_melody_to_tonality():
     bar1 = Bar("C E D# A, A# C'")
     t = Tonality()

@@ -28,6 +28,12 @@ class Tonality:
             if len(closest) > 0:
                 return closest
 
+    def get_pitches(self, indices):
+        return [self.pitches[i] for i in indices]
+
+    def get_indices(self, pitches):
+        return [self.pitches.index(pitch) for pitch in pitches]
+
     def __contains__(self, other):
         """Check if an object is in this tonality.
 

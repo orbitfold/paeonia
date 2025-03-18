@@ -309,7 +309,17 @@ class Bar:
         Bar
             A bar with notes tranposed.
         """
-        return self
+        new_bar = Bar()
+        for note in self:
+            indices = tonality.get_indices(note.pitches)
+            indices = [index + degrees for index in indices]
+            new_note = Note(
+                pitches=tonality.get_pitches(indices),
+                duration=note.duration,
+                velocity=note.velocity
+            )
+            new_bar += new_note
+        return new_bar
 
     def map_tonality(self, tonality, method="random", seed=7):
         """Map all notes in the bar to a tonality.
