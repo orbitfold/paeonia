@@ -60,7 +60,7 @@ class Voice:
         str
             Lilypond notation representing the voice
         """
-        return " ".join([bar.to_lilypond() for bar in self]) + " \\break"
+        return " ".join([bar.to_lilypond() for bar in self])
 
     def show(self):
         """Attempts to render a lilypond file and display it on a Jupyter notebook.
