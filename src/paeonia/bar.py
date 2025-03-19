@@ -2,6 +2,7 @@ from mido import Message, MetaMessage
 from paeonia.utils import download_sf2, message_list_to_midi_file
 from paeonia.parser import parse
 from paeonia import Note
+import paeonia
 import subprocess
 import os
 from string import Template
@@ -353,6 +354,31 @@ class Bar:
             )
             new_bar += new_note
         return new_bar
+
+    def tonal_mode_change(self, tonality, new_mode):
+        """Change the mode of the current notes in the bar.
+
+        Parameters
+        ----------
+        tonality: Tonality
+            Tonality we are working in.
+        new_mode: str
+            Name of the new mode.
+
+        Returns
+        -------
+        Bar
+            A new bar with mode changed.
+        """
+        new_tonality = paeonia.Tonality(tonality.root, new_mode)
+        def mode_change(pitches):
+            result = []
+            for p in pitches:
+                index = tonality.get_indices([p])
+                new_pitch = new_tonality.get_pitches(index)
+                result += new_pitch
+            return result
+        return self.pitch_variant(mode_change)
 
     def map_tonality(self, tonality, method="random", seed=7):
         """Map all notes in the bar to a tonality.
