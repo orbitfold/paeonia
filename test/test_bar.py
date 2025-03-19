@@ -93,5 +93,7 @@ def test_tonal_mode_change():
     bar1 = Bar("C D E D C")
     t = Tonality()
     assert(bar1.tonal_mode_change(t, "minor") == Bar("C D Eb D C"))
+    bar2 = Bar("<C E G>")
+    assert(bar2.tonal_mode_change(t, "minor") == Bar("<C D# G>"))
 
 
