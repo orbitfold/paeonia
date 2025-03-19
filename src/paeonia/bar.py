@@ -198,6 +198,20 @@ class Bar:
         pitches = self.pitches()
         return [b - a for a, b in zip(pitches[:-1], pitches[1:])]
 
+    def tonal_intervals(self, tonality):
+        """Get a list of intervals in the tonality.
+
+        Returns
+        -------
+        list
+            A list of intervals in the tonality.
+        """
+        pitches = self.pitches()
+        indices = []
+        for p in pitches:
+            indices += tonality.get_indices([p])
+        return [b - a for a, b in zip(indices[:-1], indices[1:])]
+
     def retrograde(self):
         """Return a bar with a retrograde pitch variant.
         Durations are unaffected.
@@ -223,6 +237,25 @@ class Bar:
             result = [pitches[0]]
             for interval in intervals:
                 result.append(result[-1] - interval)
+            return result
+        return self.pitch_variant(invert)
+
+    def tonal_inversion(self, tonality):
+        """Returns a bar with interals inverted and mapped to tonality.
+
+        Returns
+        -------
+        Bar
+            A bar with intervals inverted.
+        """
+        def invert(pitch_list):
+            intervals = self.tonal_intervals(tonality)
+            pitches = self.pitches()
+            result = [pitches[0]]
+            for interval in intervals:
+                index = tonality.get_indices([result[-1]])
+                new_index = index[0] - interval
+                result.append(tonality.get_pitches([new_index])[0])
             return result
         return self.pitch_variant(invert)
 
