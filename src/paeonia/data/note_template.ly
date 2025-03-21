@@ -8,5 +8,6 @@
 }
 
 {
+  \omit Staff.TimeSignature
   $notation
 }
