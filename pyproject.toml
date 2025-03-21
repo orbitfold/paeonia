@@ -20,6 +20,7 @@ dependencies = [
     "wget",
     "pypeg2",
     "ipython",
+    "ipywidgets",
     ]
 readme = "README.md"
 requires-python = ">=3.7"
