@@ -1,6 +1,6 @@
 from mido import Message, MidiFile, MidiTrack, MetaMessage
 import tempfile
-from paeonia.utils import download_sf2
+from paeonia.utils import download_sf2, render_and_play_midi
 import os
 import subprocess
 import importlib
@@ -68,12 +68,15 @@ class Score:
             display(Image(filename=os.path.join(tmpdir, 'notation.png')))
         return self
 
-    def play(self, tpb=480):
+    def play(self, tpb=480, autoplay=True):
         """Preview the score using fluidsynth
         """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self.to_midi(os.path.join(tmpdir, 'score.mid'), tpb)
-            sf_file = download_sf2()
-            subprocess.run(['fluidsynth', '-i', sf_file, os.path.join(tmpdir, 'score.mid')],
-                           stdout=subprocess.DEVNULL)
+        midi = MidiFile(ticks_per_beat=tpb)
+        for key in self.voices:
+            track = MidiTrack() 
+            voice = self[key]
+            track += voice.to_midi(tpb)
+            track.append(MetaMessage('end_of_track', time=0))
+            midi.tracks.append(track)
+        render_and_play_midi(midi, tpb, autoplay=autoplay)
         return self

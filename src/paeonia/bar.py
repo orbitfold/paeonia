@@ -1,5 +1,5 @@
-from mido import Message, MetaMessage
-from paeonia.utils import download_sf2, message_list_to_midi_file
+from mido import Message, MetaMessage, MidiFile, MidiTrack
+from paeonia.utils import download_sf2, message_list_to_midi_file, render_and_play_midi
 from paeonia.parser import parse
 from paeonia import Note
 import paeonia
@@ -470,14 +470,15 @@ class Bar:
             display(Image(filename=os.path.join(tmpdir, 'notation.preview.png')))
         return self
 
-    def play(self, tpb=480):
+    def play(self, tpb=480, autoplay=True):
         """Preview a note using fluidsynth.
         """
         messages, _ = self.to_midi(tpb=tpb)
         messages.append(MetaMessage('end_of_track', time=0))
-        midi_file = message_list_to_midi_file(messages, tpb)
-        sf_file = download_sf2()
-        subprocess.run(['fluidsynth', '-i', sf_file, midi_file],
-                       stdout=subprocess.DEVNULL)
-        os.remove(midi_file)
+        midi = MidiFile(ticks_per_beat=tpb)
+        track = MidiTrack()
+        for message in messages:
+            track.append(message)
+        midi.tracks.append(track)
+        render_and_play_midi(midi, tpb, autoplay=autoplay)
         return self

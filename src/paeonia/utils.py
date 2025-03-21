@@ -3,6 +3,11 @@ import wget
 import zipfile
 import pathlib
 import tempfile
+import ipywidgets as widgets
+from IPython.display import display, Audio
+import weakref
+import shutil
+import subprocess
 from mido import MidiFile, MidiTrack
 
 _TRANSLATE_NOTE_NAME = {
@@ -103,3 +108,32 @@ def message_list_to_midi_file(lst, tpb):
     os.close(fd)
     midi.save(path)
     return path
+
+def render_and_play_midi(midi_object, tpb=480, autoplay=True):
+    """Render a given file to audio with fluidsynth and play it back in
+    a Jupyter notebook.
+
+    Parameters
+    ----------
+    midi_object: midi
+        Mido midi object.
+    tpb: int
+        Ticks per beat.
+    autoplay: bool
+        True if should play automatically.
+    """
+    tmpdir = tempfile.mkdtemp()
+    midi_object.save(os.path.join(tmpdir, "preview.mid"))
+    sf_file = download_sf2()
+    subprocess.run(["fluidsynth", "-T", "wav", "-F", os.path.join(tmpdir, "preview.wav"),
+                    "-i", sf_file, os.path.join(tmpdir, "preview.mid")],
+                   stdout=subprocess.DEVNULL)
+    output = widgets.Output()
+    with output:
+        display(Audio(os.path.join(tmpdir, "preview.wav"), autoplay=autoplay))
+    def cleanup():
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+    weakref.finalize(output, cleanup)
+    display(output)
+

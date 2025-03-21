@@ -1,5 +1,5 @@
-from mido import MetaMessage
-from paeonia.utils import download_sf2, message_list_to_midi_file
+from mido import MetaMessage, MidiFile, MidiTrack
+from paeonia.utils import download_sf2, message_list_to_midi_file, render_and_play_midi
 import subprocess
 import os
 from copy import copy
@@ -80,9 +80,10 @@ class Voice:
         """
         messages = self.to_midi(tpb=tpb)
         messages.append(MetaMessage('end_of_track', time=0))
-        midi_file = message_list_to_midi_file(messages, tpb)
-        sf_file = download_sf2()
-        subprocess.run(['fluidsynth', '-i', sf_file, midi_file],
-                       stdout=subprocess.DEVNULL)
-        os.remove(midi_file)
+        midi = MidiFile(ticks_per_beat=tpb)
+        track = MidiTrack()
+        for message in messages:
+            track.append(message)
+        midi.tracks.append(track)
+        render_and_play_midi(midi, tpb)
         return self
