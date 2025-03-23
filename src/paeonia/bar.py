@@ -64,6 +64,9 @@ class Bar:
             new_bar.notes.append(note / other)
         return new_bar
 
+    def __and__(self, other):
+        return self.merge_pitches(other)
+
     def __getitem__(self, i):
         if isinstance(i, slice):
             new_bar = Bar()
@@ -156,8 +159,7 @@ class Bar:
         """
         result = []
         for note in self:
-            if note.pitches is not None:
-                result += note.pitches
+            result += note.pitches
         return result
 
     def pitch_variant(self, fn):
@@ -177,12 +179,11 @@ class Bar:
         new_bar = Bar()
         pitches = []
         for note in self:
-            if note.pitches is not None:
-                pitches += note.pitches
+            pitches += note.pitches
         new_pitches = fn(pitches)
         assert(len(pitches) == len(new_pitches))
         for note in self:
-            if note.pitches is None:
+            if note.is_rest():
                 new_bar.add_note(copy(note))
             else:
                 new_bar.add_note(Note(pitches=[new_pitches.pop(0) for _ in note.pitches], duration=note.duration))
@@ -399,6 +400,25 @@ class Bar:
             new_bar += note.map_tonality(tonality, method=method, rnd=rnd)
         return new_bar
 
+    def merge_pitches(self, other):
+        """Merges the pitches of two bars. The two bars have to have the
+        same number of notes with the same durations.
+
+        Parameters
+        ----------
+        other: Bar
+            A bar to merge.
+
+        Returns
+        -------
+        Bar
+           A new bar where pitches of this and other bar are merged.
+        """
+        new_bar = Bar()
+        for note1, note2 in zip(self, other):
+            new_bar += note1 & note2
+        return new_bar
+
     def map_melody_to_tonality(self, tonality):
         """Attempts to map notes in the bar to a tonality while maintaining
         the shape of the melody.
@@ -420,7 +440,7 @@ class Bar:
         """
         messages = []
         for note in self.notes:
-            if note.pitches is None:
+            if note.is_rest():
                 offset += int(tpb * 4 * note.duration)
             else:
                 messages += note.to_midi(offset, tpb)

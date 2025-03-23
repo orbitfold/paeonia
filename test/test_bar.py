@@ -96,4 +96,13 @@ def test_tonal_mode_change():
     bar2 = Bar("<C E G>")
     assert(bar2.tonal_mode_change(t, "minor") == Bar("<C D# G>"))
 
+def test_merge_pitches():
+    bar1 = Bar("C D2 R E D1 C R")
+    bar2 = Bar("D F2 R G A1 R F")
+    bar3 = Bar("D4 F2 G A1 F")
+    result = Bar("<C D> <D F>2 R <E G> <D A>1 C F")
+    assert(bar1 & bar2 == result)
+    with pytest.raises(RuntimeError):
+        bar1 & bar3
+
 

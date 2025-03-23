@@ -43,7 +43,6 @@ class Note(List):
     grammar = NoteName, optional(Accidental), optional(OctaveIndicator), optional(Duration)
 
     def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
-        pitch = None
         for c in self:
             if isinstance(c, NoteName):
                 pitch = LETTER_TO_PITCH[str(c)]
@@ -70,9 +69,9 @@ class Rest(List):
     def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
         self.octave = octave
         if self[0] is None:
-            return paeonia.Note(pitches=None, duration=duration)
+            return paeonia.Note(pitches=[], duration=duration)
         else:
-            return paeonia.Note(pitches=None, duration=self[0].get_duration())
+            return paeonia.Note(pitches=[], duration=self[0].get_duration())
 
 # Define a chord (list of notes enclosed in < >, optionally followed by a duration)
 class Chord(List):

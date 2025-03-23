@@ -16,6 +16,8 @@ import random
 
 class Note:
     def __init__(self, pitches=None, duration=None, velocity=0.75):
+        if pitches is None:
+            pitches = []
         if isinstance(pitches, str):
             notes = parse(pitches)
             self.pitches = notes[0].pitches
@@ -27,16 +29,13 @@ class Note:
             self.velocity = velocity
 
     def __copy__(self):
-        if self.pitches is None:
-            return Note(pitches=None, duration=self.duration)
-        else:
-            return Note(pitches=list(self.pitches), duration=self.duration)
+        return Note(pitches=list(self.pitches), duration=self.duration)
 
     def __eq__(self, other):
         return self.pitches == other.pitches and self.duration == other.duration
 
     def __lt__(self, other):
-        if self.pitches is None or other.pitches is None:
+        if self.is_rest() or other.is_rest():
             return False
         for p1 in self.pitches:
             for p2 in other.pitches:
@@ -45,7 +44,7 @@ class Note:
         return True
 
     def __gt__(self, other):
-        if self.pitches is None or other.pitches is None:
+        if self.is_rest() or other.is_rest():
             return False
         for p1 in self.pitches:
             for p2 in other.pitches:
@@ -54,7 +53,7 @@ class Note:
         return True
 
     def __add__(self, other):
-        if self.pitches is not None:
+        if not self.is_rest():
             new_note = copy(self)
             new_note.pitches = [pitch + other for pitch in self.pitches]
             return new_note
@@ -62,7 +61,7 @@ class Note:
             return copy(self)
 
     def __sub__(self, other):
-        if self.pitches is not None:
+        if not self.is_rest():
             new_note = copy(self)
             new_note.pitches = [pitch - other for pitch in self.pitches]
             return new_note
@@ -79,12 +78,25 @@ class Note:
         new_note.duration /= other
         return new_note
 
+    def __and__(self, other):
+        return self.merge_pitches(other)
+
     def __str__(self):
         note, octave = self.to_paeonia()
         return note
 
     def __repr__(self):
         return f"Note(\"{str(self)}\")"
+
+    def is_rest(self):
+        """Is this note a rest.
+
+        Returns
+        -------
+        bool
+            True if rest, False otherwise.
+        """
+        return len(self.pitches) == 0
 
     def map_tonality(self, tonality, method="random", rnd=None):
         """Map the pitches this note consists of to a tonality.
@@ -123,6 +135,26 @@ class Note:
                     new_pitches.append(rnd.choice(closest))
         new_note.pitches = new_pitches
         return new_note
+
+    def merge_pitches(self, other):
+        """Merge the pitches of two notes (into a chord).
+
+        Parameters
+        ----------
+        other: Note
+            Another note to merge with.
+
+        Returns
+        -------
+        Note
+            A note with pitches merged.
+        """
+        if self.duration != other.duration:
+            raise RuntimeError(f"To merge the pitches of two notes the durations of \
+            f{self} and f{other} would have to be the same")
+        new_note = copy(self)
+        new_note.pitches += other.pitches
+        return new_note  
       
     def to_midi(self, offset=0, tpb=480):
         """Return MIDI messages corresponding to this note.
@@ -250,7 +282,7 @@ class Note:
             paeonia representaiton
         """
         duration = Note.duration_to_lilypond(self.duration) if self.duration != previous_duration else ""
-        if self.pitches is None:
+        if self.is_rest():
             return "R" + duration, previous_octave
         elif len(self.pitches) < 2:
             note_repr, octave = Note.note_to_paeonia(self.pitches[0], previous_octave=previous_octave)
@@ -275,7 +307,7 @@ class Note:
         str
             Lilypond representation 
         """
-        if self.pitches is None:
+        if self.is_rest():
             return "r" + Note.duration_to_lilypond(self.duration)
         elif len(self.pitches) < 2:
             return Note.note_to_lilypond(self.pitches[0]) + Note.duration_to_lilypond(self.duration)
