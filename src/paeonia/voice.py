@@ -75,7 +75,7 @@ class Voice:
             display(Image(filename=os.path.join(tmpdir, 'notation.png')))
         return self
 
-    def play(self, tpb=480):
+    def play(self, tpb=480, autoplay=False):
         """Preview a note using fluidsynth.
         """
         messages = self.to_midi(tpb=tpb)
@@ -85,5 +85,5 @@ class Voice:
         for message in messages:
             track.append(message)
         midi.tracks.append(track)
-        render_and_play_midi(midi, tpb)
+        render_and_play_midi(midi, tpb, autoplay=autoplay)
         return self

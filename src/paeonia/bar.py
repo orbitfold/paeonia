@@ -490,7 +490,7 @@ class Bar:
             display(Image(filename=os.path.join(tmpdir, 'notation.preview.png')))
         return self
 
-    def play(self, tpb=480, autoplay=True):
+    def play(self, tpb=480, autoplay=False):
         """Preview a note using fluidsynth.
         """
         messages, _ = self.to_midi(tpb=tpb)

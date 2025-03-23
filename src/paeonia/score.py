@@ -68,7 +68,7 @@ class Score:
             display(Image(filename=os.path.join(tmpdir, 'notation.png')))
         return self
 
-    def play(self, tpb=480, autoplay=True):
+    def play(self, tpb=480, autoplay=False):
         """Preview the score using fluidsynth
         """
         midi = MidiFile(ticks_per_beat=tpb)

@@ -328,7 +328,7 @@ class Note:
         return self
 
 
-    def play(self, tpb=480, autoplay=True):
+    def play(self, tpb=480, autoplay=False):
         """Preview a note using fluidsynth.
         """
         messages = self.to_midi(tpb=tpb)
