@@ -105,4 +105,13 @@ def test_merge_pitches():
     with pytest.raises(RuntimeError):
         bar1 & bar3
 
-
+def test_pulse_to_durations():
+    bar = Bar("C E R")
+    pulses = "x.xx...x."
+    new_bar_1 = bar.pulses_to_durations(pulses, legato=False)
+    new_bar_2 = bar.pulses_to_durations(pulses, legato=True)
+    assert(new_bar_1 == Bar("C16 R E R R R R C R"))
+    assert(new_bar_2 == Bar("C8 E16 R4 C8"))
+    pulses = "...x"
+    new_bar_3 = bar.pulses_to_durations(pulses, legato=True)
+    assert(new_bar_3 == Bar("R8. C16"))

@@ -311,7 +311,7 @@ class Bar:
 
         Parameters
         ----------
-        generator: Generator
+        generator: Generator, Bar
             A Note generator
         pitches: bool
             Whether to take pitches
@@ -320,6 +320,8 @@ class Bar:
         velocities: bool
             Whether to take velocities
         """
+        if isinstance(generator, Bar):
+            generator = Bar.cycle()
         for note in self:
             next_note = next(generator)
             if pitches:
@@ -417,6 +419,53 @@ class Bar:
         new_bar = Bar()
         for note1, note2 in zip(self, other):
             new_bar += note1 & note2
+        return new_bar
+
+    def pulses_to_durations(self, pulses, legato=True, unit=Fraction("1/16")):
+        """Convert a list of pulses into durations. If there are more pulses
+        in the string than there are notes in this bar, the notes will be looped.
+
+        Parameters
+        ----------
+        pulses: str
+            A string of pulses where a pulse is marked by 'x' and a rest is marked by '.'
+        legato: bool
+            If set to False it will each pulse and rest will be of unit length. Otherwise
+            rests and notes will be tied if they are consecutive.
+        unit: Fraction
+            Base duration.
+
+        Returns
+        -------
+        Bar
+            A new bar with durations generated from the pulses list.
+        """
+        notes = self.cycle()
+        new_bar = Bar()
+        duration = 0
+        note = None
+        if legato:
+            for c in pulses:
+                if c == 'x':
+                    if note is None and duration > 0:
+                        new_bar += Note(pitches=[], duration=duration)
+                    elif duration > 0:
+                        new_bar += Note(pitches=note.pitches, duration=duration, velocity=note.velocity)
+                    note = next(notes)
+                    duration = unit
+                elif c == '.':
+                    duration += unit
+            if note is not None:
+                new_bar += Note(pitches=note.pitches, duration=duration, velocity=note.velocity)
+            else:
+                new_bar += Note(pitches=[], duration=duration)
+        else:
+            for c in pulses:
+                if c == 'x':
+                    note = next(notes)
+                    new_bar += Note(pitches=note.pitches, duration=unit, velocity=note.velocity)
+                elif c == '.':
+                    new_bar += Note(pitches=[], duration=unit)
         return new_bar
 
     def map_melody_to_tonality(self, tonality):
