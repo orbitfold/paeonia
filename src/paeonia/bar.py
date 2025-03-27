@@ -75,6 +75,11 @@ class Bar:
                            1 if i.step is None else i.step):
                 new_bar.add_note(self[j])
             return new_bar
+        elif isinstance(i, list):
+            new_bar = Bar()
+            for index in i:
+                new_bar += self[index]
+            return new_bar
         else:
             return self.notes[i]
 
