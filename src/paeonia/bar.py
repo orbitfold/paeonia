@@ -473,6 +473,32 @@ class Bar:
                     new_bar += Note(pitches=[], duration=unit)
         return new_bar
 
+    def euclidean_rhythm(self, n, k, legato=True, unit=Fraction("1/16")):
+        """Generate a euclidean rhythm.
+
+        Parameters
+        ----------
+        n: int
+            The n parameter for the algorithm (length of the bar in units).
+        k: int
+            The k parameter for the algorithm (number of pulses).
+        legato: bool
+            Whether to elongate the pulses until the next note.
+        unit: Fraction
+            Base duration.
+        """
+        assert(n >= k)
+        pulses = [['x'] for _ in range(k)]
+        rests = [['.'] for _ in range(n - k)]
+        pattern = pulses + rests
+        while k != 0:
+            pattern = [x + y for x, y in zip(pattern[:k], pattern[-k:])] + pattern[k:-k]
+            t = k
+            k = n % k
+            n = t
+        pattern = pattern[1] + pattern[0]
+        return self.pulses_to_durations(''.join(pattern), legato=legato, unit=unit)
+
     def map_melody_to_tonality(self, tonality):
         """Attempts to map notes in the bar to a tonality while maintaining
         the shape of the melody.

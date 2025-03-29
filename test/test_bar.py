@@ -115,3 +115,8 @@ def test_pulse_to_durations():
     pulses = "...x"
     new_bar_3 = bar.pulses_to_durations(pulses, legato=True)
     assert(new_bar_3 == Bar("R8. C16"))
+
+def test_euclidean_rhythm():
+    bar = Bar("C E D")
+    er_bar = bar.euclidean_rhythm(13, 5)
+    assert(er_bar == Bar("C8. E8 D8. C8 E8."))
