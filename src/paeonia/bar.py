@@ -426,7 +426,7 @@ class Bar:
             new_bar += note1 & note2
         return new_bar
 
-    def pulses_to_durations(self, pulses, legato=True, unit=Fraction("1/16")):
+    def pulses_to_durations(self, pulses, legato=True, unit=Fraction("1/16"), offset=0):
         """Convert a list of pulses into durations. If there are more pulses
         in the string than there are notes in this bar, the notes will be looped.
 
@@ -439,12 +439,15 @@ class Bar:
             rests and notes will be tied if they are consecutive.
         unit: Fraction
             Base duration.
+        offset: int
+            Which note to start with.
 
         Returns
         -------
         Bar
             A new bar with durations generated from the pulses list.
         """
+        pulses = pulses[offset:] + pulses[:offset]
         notes = self.cycle()
         new_bar = Bar()
         duration = 0
@@ -473,7 +476,7 @@ class Bar:
                     new_bar += Note(pitches=[], duration=unit)
         return new_bar
 
-    def euclidean_rhythm(self, n, k, legato=True, unit=Fraction("1/16")):
+    def euclidean_rhythm(self, n, k, legato=True, unit=Fraction("1/16"), offset=0):
         """Generate a euclidean rhythm.
 
         Parameters
@@ -486,18 +489,19 @@ class Bar:
             Whether to elongate the pulses until the next note.
         unit: Fraction
             Base duration.
+        offset: int
+            Which note to start with.
+
+        Returns
+        -------
+        Bar
+           A bar containing the rhythm.
         """
         assert(n >= k)
-        pulses = [['x'] for _ in range(k)]
-        rests = [['.'] for _ in range(n - k)]
-        pattern = pulses + rests
-        while k != 0:
-            pattern = [x + y for x, y in zip(pattern[:k], pattern[-k:])] + pattern[k:-k]
-            t = k
-            k = n % k
-            n = t
-        pattern = pattern[1] + pattern[0]
-        return self.pulses_to_durations(''.join(pattern), legato=legato, unit=unit)
+        lst = list(range(-1, n))
+        lst = [(x * k) % n for x in lst]
+        pulses = ['x' if x > y else '.' for x, y in zip(lst[:-1], lst[1:])]
+        return self.pulses_to_durations(''.join(pulses), legato=legato, unit=unit, offset=offset)
 
     def map_melody_to_tonality(self, tonality):
         """Attempts to map notes in the bar to a tonality while maintaining

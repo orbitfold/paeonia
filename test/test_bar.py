@@ -118,5 +118,10 @@ def test_pulse_to_durations():
 
 def test_euclidean_rhythm():
     bar = Bar("C E D")
-    er_bar = bar.euclidean_rhythm(13, 5)
+    er_bar = bar.euclidean_rhythm(13, 5, offset=3)
     assert(er_bar == Bar("C8. E8 D8. C8 E8."))
+    bar = Bar("C")
+    er_bar = bar.euclidean_rhythm(8, 3, offset=3)
+    assert(er_bar == Bar("C8. C8 C8."))
+    er_bar = bar.euclidean_rhythm(8, 4)
+    assert(er_bar == Bar("C8 C C C"))
