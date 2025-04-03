@@ -67,6 +67,12 @@ class Bar:
     def __and__(self, other):
         return self.merge_pitches(other)
 
+    def __or__(self, other):
+        return self.take(other, pitches=True)
+
+    def __xor__(self, other):
+        return self.take(other, durations=True)
+
     def __getitem__(self, i):
         if isinstance(i, slice):
             new_bar = Bar()
