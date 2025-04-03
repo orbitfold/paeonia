@@ -10,8 +10,6 @@ authors = [
 ]
 description = "Computer aided composition package"
 dependencies = [
-    "pyaudio",
-    "tinysoundfont",
     "mido",
     "deal",
     "numpy",
