@@ -15,13 +15,14 @@ from fractions import Fraction
 import random
 
 class Bar:
-    def __init__(self, notes=None):
+    def __init__(self, notes=None, tonality=None):
         if notes is None:
             self.notes = []
         elif isinstance(notes, str):
             self.notes = parse(notes)
         else:
             self.notes = notes
+        self.tonality = tonality
 
     def __copy__(self):
         new_notes = [copy(note) for note in self.notes]
