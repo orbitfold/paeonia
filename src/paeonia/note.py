@@ -149,11 +149,9 @@ class Note:
         Note
             A note with pitches merged.
         """
-        if self.duration != other.duration:
-            raise RuntimeError(f"To merge the pitches of two notes the durations of \
-            f{self} and f{other} would have to be the same")
         new_note = copy(self)
         new_note.pitches += other.pitches
+        new_note.pitches = list(sorted(new_note.pitches))
         return new_note  
       
     def to_midi(self, offset=0, tpb=480):

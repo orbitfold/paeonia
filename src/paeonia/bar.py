@@ -428,7 +428,7 @@ class Bar:
            A new bar where pitches of this and other bar are merged.
         """
         new_bar = Bar()
-        for note1, note2 in zip(self, other):
+        for note1, note2 in zip(self, other.cycle()):
             new_bar += note1 & note2
         return new_bar
 

@@ -102,8 +102,6 @@ def test_merge_pitches():
     bar3 = Bar("D4 F2 G A1 F")
     result = Bar("<C D> <D F>2 R <E G> <D A>1 C F")
     assert(bar1 & bar2 == result)
-    with pytest.raises(RuntimeError):
-        bar1 & bar3
 
 def test_pulse_to_durations():
     bar = Bar("C E R")
