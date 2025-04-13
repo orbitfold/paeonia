@@ -2,20 +2,35 @@ from itertools import cycle
 import paeonia
 from paeonia.utils import note_name_to_pitch_class, mode_name_to_index
 
+SCALES = {
+    "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    "major": [0, 2, 4, 5, 7, 9, 11],
+    "ionian": [0, 2, 4, 5, 7, 9, 11],
+    "dorian": [0, 2, 3, 5, 7, 9, 10],
+    "phrygian": [0, 1, 3, 5, 7, 8, 10],
+    "lydian": [0, 2, 4, 6, 7, 9, 11],
+    "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+    "aeolian": [0, 2, 3, 5, 7, 8, 10],
+    "minor": [0, 2, 3, 5, 7, 8, 10],
+    "minor-harmonic": [0, 2, 3, 5, 7, 8, 11],
+    "minor-melodic": [0, 2, 3, 5, 7, 9, 11],
+    "locrian": [0, 1, 3, 5, 6, 8, 10]
+}
+
 class Tonality:
-    def __init__(self, root='C', mode='ionian'):
+    def __init__(self, root='C', scale='ionian'):
         self.root = root
-        self.mode = mode
-        intervals = [2, 2, 1, 2, 2, 2, 1]
-        mode_index = mode_name_to_index(mode)
-        intervals = intervals[mode_index:] + intervals[:mode_index]
-        interval_cycle = cycle(intervals)
-        self.pitches = [-12 + note_name_to_pitch_class(root)]
-        while True:
-            new_pitch = self.pitches[-1] + next(interval_cycle)
-            if new_pitch > 127:
-                break
-            self.pitches.append(new_pitch)
+        self.scale_name = scale
+        self.scale = SCALES[scale]
+        self.pitches = []
+        root = note_name_to_pitch_class(root)
+        self.scale = [(x + root) % 12 for x in self.scale]
+        for octave in range(11):
+            for pc in self.scale:
+                new_pitch = octave * 12 + pc
+                if new_pitch > 127:
+                    break
+                self.pitches.append(new_pitch)
 
     def closest(self, pitch):
         """Find pitches in the tonality closest to the pitch given.
