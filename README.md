@@ -4,11 +4,27 @@ Paeonia is a computer assisted music composition software. It draws a lot of ins
 
 # Basic Use
 
-Here is how to install and use it Google Collab.
+Here is how to install and use it Google Colab (or any other Jupyter notebook).
 
-It relies on fluidsynth for preview and lilypond for score rendering. So run these commands first.
+It relies on fluidsynth for preview and lilypond for score rendering. So run these commands first inside the Jupyter notebook cell.
 
 ```
+%%capture
 !apt install fluidsynth
 !apt install lilypond
+```
+
+Then install paeonia.
+
+```
+%%capture
+!pip install git+https://github.com/orbitfold/paeonia.git
+```
+
+After this we can test it by playing a couple of notes and rendering the score.
+
+```
+from paeonia import Bar
+b = Bar("C' Eb G Bb")
+b.show().play()
 ```
