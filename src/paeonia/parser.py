@@ -59,7 +59,7 @@ class Note(List):
                         octave -= 1
             elif isinstance(c, Duration):
                 duration = c.get_duration()
-        pitch = 48 + octave * 12 + pitch
+        pitch = 60 + octave * 12 + pitch
         self.octave = octave
         return paeonia.Note(pitches=[pitch], duration=duration)
 
