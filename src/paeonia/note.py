@@ -198,7 +198,7 @@ class Note:
             11: 'B'
         }
         name = conversion[int(pitch) % 12]
-        octave = int(pitch) // 12 - 3
+        octave = int(pitch) // 12 - 5
         adjusted_octave = octave - previous_octave
         if adjusted_octave < 0:
             octave_identifier = "," * (-adjusted_octave)
