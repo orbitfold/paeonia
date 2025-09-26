@@ -3,7 +3,7 @@ import pytest
 
 def test_to_lilypond():
     bar = Bar("C#4. D''8.. R2. Bb,16 <F# A# C#'>2. G, R E4.. <A C' E>1")
-    assert(bar.to_lilypond() == "cis4. d''4 r2. ais'16 <fis' ais' cis''>2. g'2. r2. e'2 <a' c'' e''>1")
+    assert(bar.to_lilypond() == "cis'4. d'''4 r2. ais''16 <fis'' ais'' cis'''>2. g''2. r2. e''2 <a'' c''' e'''>1")
 
 def test_eq():
     assert(Bar("R") == Bar("R"))
