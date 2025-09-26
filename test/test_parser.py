@@ -14,7 +14,7 @@ def test_parse():
     for note, duration in zip(parsed_bar, durations):
         assert(note.duration == duration)
     parsed_bar = parse(test_input, relative=True)
-    pitches = [[49], [74], [], [70], [66, 70, 73], [67], [], [64], [69, 72, 76]]
+    pitches = [[61], [86], [], [82], [78, 82, 85], [79], [], [76], [81, 84, 88]]
     for note, pitch_list in zip(parsed_bar, pitches):
         assert(note.pitches == pitch_list)
     for note, duration in zip(parsed_bar, durations):
