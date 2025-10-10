@@ -69,9 +69,11 @@ class Note:
             return copy(self)
 
     def __mul__(self, other):
-        new_note = copy(self)
-        new_note.duration *= other
-        return new_note
+        from paeonia import Bar
+        b = Bar()
+        for _ in range(other):
+            b += self
+        return b
 
     def __truediv__(self, other):
         new_note = copy(self)
