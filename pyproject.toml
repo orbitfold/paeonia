@@ -19,6 +19,7 @@ dependencies = [
     "pypeg2",
     "ipython",
     "ipywidgets",
+    "jupyterlab",
     ]
 readme = "README.md"
 requires-python = ">=3.7"
@@ -31,3 +32,9 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/orbitfold/paeonia"
 "Bug Tracker" = "https://github.com/orbitfold/paeonia/issues"
+
+[project.scripts]
+paeonia = "paeonia.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/paeonia"]
