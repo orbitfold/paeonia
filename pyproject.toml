@@ -22,7 +22,7 @@ dependencies = [
     "jupyterlab",
     ]
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
