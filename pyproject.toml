@@ -41,3 +41,8 @@ paeonia = "paeonia.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/paeonia"]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.9",
+]

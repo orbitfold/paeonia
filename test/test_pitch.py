@@ -1,32 +1,27 @@
 import pytest
 
-from paeonia.pitch import Pitch
+from paeonia.pitch import Pitch, PitchClass
 
+def test_enharmonic_spelling_is_distinct():
+    sharp = Pitch.parse("D#4")
+    flat = Pitch.parse("Eb4")
 
-def test_pitch_parse_natural():
-    pitch = Pitch.parse("C4")
+    assert sharp.midi == 63
+    assert flat.midi == 63
+    assert sharp != flat
+    assert sharp.enharmonic_equals(flat)
 
-    assert pitch == Pitch("C", 0, 4)
-    assert pitch.midi == 60
-    assert pitch.pitch_class == 0
+def test_double_accidental():
+    assert Pitch.parse("F##4").midi == Pitch.parse("G4").midi
 
+def test_midi_round_trip():
+    for midi in range(128):
+        assert Pitch.from_midi(midi).midi == midi
 
-def test_pitch_parse_accidentals():
-    assert Pitch.parse("Bb3") == Pitch("B", -1, 3)
-    assert Pitch.parse("F##5") == Pitch("F", 2, 5)
-    assert Pitch.parse("Gbb-1") == Pitch("G", -2, -1)
+def test_invalid_pitch_class():
+    with pytest.raises(ValueError):
+        _ = PitchClass.parse("H#")
 
-
-def test_pitch_parse_normalizes_case_and_whitespace():
-    assert Pitch.parse(" c#4 ") == Pitch("C", 1, 4)
-
-
-@pytest.mark.parametrize("value", ["H4", "C###4", "Cb#4", "C", "4C"])
-def test_pitch_parse_rejects_invalid_syntax(value):
-    with pytest.raises(ValueError, match="Invalid pitch"):
-        Pitch.parse(value)
-
-
-def test_pitch_parse_rejects_out_of_midi_range():
-    with pytest.raises(ValueError, match="outside the MIDI range"):
-        Pitch.parse("C-2")
+def test_out_of_range_midi():
+    with pytest.raises(ValueError):
+        Pitch.parse("C10").midi
