@@ -340,4 +340,3 @@ class Note:
         midi.tracks.append(track)
         render_and_play_midi(midi, tpb, autoplay=autoplay)
         return self
-
