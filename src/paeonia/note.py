@@ -1,3 +1,11 @@
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, replace
+from fractions import Fraction
+
+from .pitch import Pitch
+
 from mido import Message, MetaMessage, MidiFile, MidiTrack
 from paeonia.utils import download_sf2, message_list_to_midi_file, render_and_play_midi
 import paeonia
@@ -11,29 +19,131 @@ from string import Template
 from IPython.display import display, Image
 import importlib
 from copy import copy
-from fractions import Fraction
 import random
 
+
+@dataclass(frozen=True, slots=True)
 class Note:
-    def __init__(self, pitches=None, duration=None, velocity=0.75):
-        if pitches is None:
-            pitches = []
-        if isinstance(pitches, str):
-            notes = parse(pitches)
-            self.pitches = notes[0].pitches
-            self.duration = notes[0].duration
-            self.velocity = velocity
-        else:
-            self.pitches = pitches
-            self.duration = duration
-            self.velocity = velocity
+    pitches: tuple[Pitch, ...] = ()
+    duration: Fraction = Fraction(1, 4)
+    velocity: float = 0.75
+    tie_in: bool = False
+    tie_out: bool = False
 
-    def __copy__(self):
-        return Note(pitches=list(self.pitches), duration=self.duration)
+    def __post_init__(self) -> None:
+        normalized_pitches = tuple(
+            pitch
+            if isinstance(pitch, Pitch)
+            else Pitch.from_midi(int(pitch))
+            for pitch in self.pitches
+        )
+        duration = Fraction(self.duration)
 
-    def __eq__(self, other):
-        return self.pitches == other.pitches and self.duration == other.duration
+        if duration <= 0:
+            raise ValueError("Note duration must be positive")
+        if not 0.0 <= self.velocity <= 1.0:
+            raise ValueError("Velocity must be between 0 and 1")
 
+        object.__setattr__(self, "pitches", normalized_pitches)
+        object.__setattr__(self, "duration", duration)
+
+    def is_rest(self) -> bool:
+        return not self.pitches
+
+    @property
+    def is_chord(self) -> bool:
+        return len(self.pitches) > 1
+
+    @property
+    def midi_pitches(self) -> tuple[int, ...]:
+        return tuple(pitch.midi for pitch in self.pitches)
+
+    @classmethod
+    def rest(
+            cls,
+            duration: Fraction = Fraction(1, 4),
+    ) -> "Note":
+        return cls(pitches=(), duration=duration)
+
+    @classmethod
+    def from_midi(
+            cls,
+            pitches: int | Iterable[int],
+            duration: Fraction = Fraction(1, 4),
+            velocity: float = 0.75,
+    ) -> "Note":
+        if isinstance(pitches, int):
+            pitches=(pitches,)
+        return cls(
+            pitches=tuple(Pitch.from_midi(value) for value in pitches),
+            duration=duration,
+            velocity=velocity,
+        )
+
+    @classmethod
+    def parse(cls, notation:str) -> "Note":
+        from .parser import parse
+        notes = parse(notation)
+        if len(notes) != 1:
+            raise ValueError(
+                "Note.parse() requires notation containing exactly one event"
+            )
+        return notes[0]
+
+    def with_pitches(self, pitches: Iterable[Pitch]) -> "Note":
+        return replace(self, pitches=tuple(pitches))
+
+    def with_duration(self, duration: Fraction) -> "Note":
+        return replace(self, duration=Fraction(duration))
+
+    def with_velocity(self, velocity: float) -> "Note":
+        return replace(self, velocity=velocity)
+
+    def with_ties(
+            self,
+            *,
+            tie_in: bool | None = None,
+            tie_out: bool | None = None,
+    ) -> "Note":
+        return replace(
+            self,
+            tie_in=self.tie_in if tie_in is None else tie_in,
+            tie_out=self.tie_out if tie_out is None else tie_out,
+        )
+
+    def map_pitches(
+            self,
+            function: Callable[[Pitch], Pitch],
+    ) -> "Note":
+        if self.is_rest():
+            return self
+        return self.with_pitches(function(pitch) for pitch in self.pitches)
+
+    def transpose_semitones(
+            self,
+            semitones: int,
+            *,
+            prefer: str = "sharps",
+    ) -> "Note":
+        return self.map_pitches(
+            lambda pitch: pitch.transpose_semitones(
+                semitones,
+                prefer=prefer,
+            )
+        )
+
+    def merge_pitches(self, other: "Note") -> "Note":
+        if self.duration != other.duration:
+            raise ValueError("Cannot merge notes with different durations")
+        return self.with_pitches(self.pitches + other.pitches)
+
+    def sounds_like(self, other: "Note") -> bool:
+        return (
+            isinstance(other, Note)
+            and self.midi_pitches == other.midi_pitches
+            and self.duration == other.duration
+        )
+        
     def __lt__(self, other):
         if self.is_rest() or other.is_rest():
             return False
@@ -52,33 +162,12 @@ class Note:
                     return False
         return True
 
-    def __add__(self, other):
-        if not self.is_rest():
-            new_note = copy(self)
-            new_note.pitches = [pitch + other for pitch in self.pitches]
-            return new_note
-        else:
-            return copy(self)
-
-    def __sub__(self, other):
-        if not self.is_rest():
-            new_note = copy(self)
-            new_note.pitches = [pitch - other for pitch in self.pitches]
-            return new_note
-        else:
-            return copy(self)
-
     def __mul__(self, other):
         from paeonia import Bar
         b = Bar()
         for _ in range(other):
             b += self
         return b
-
-    def __truediv__(self, other):
-        new_note = copy(self)
-        new_note.duration /= other
-        return new_note
 
     def __and__(self, other):
         return self.merge_pitches(other)
@@ -157,186 +246,16 @@ class Note:
         return new_note  
       
     def to_midi(self, offset=0, tpb=480):
-        """Return MIDI messages corresponding to this note.
-        """
-        messages = []
-        for index, pitch in enumerate(self.pitches):
-            messages.append(Message('note_on', note=int(pitch), velocity=int(127 * self.velocity), time=offset))
-        messages.append(Message('note_off', note=int(self.pitches[0]), velocity=127, time=int(tpb * 4 * self.duration)))
-        for index, pitch in enumerate(self.pitches[1:]):
-            messages.append(Message('note_off', note=int(pitch), velocity=127, time=0))
-        return messages
-
-    @staticmethod
-    def note_to_paeonia(pitch, previous_octave=0):
-        """Convert a pitch to paeonia notation with octave identifier.
-
-        Parameters
-        ----------
-        pitch: int
-            MIDI pitch
-        octave: int
-            Previous octave
-
-        Returns
-        -------
-        str, int 
-            Paeonia notation note and octave index
-        """
-        if pitch is None:
-            return "R"
-        conversion = {
-            0: 'C',
-            1: 'C#',
-            2: 'D',
-            3: 'D#',
-            4: 'E',
-            5: 'F',
-            6: 'F#',
-            7: 'G',
-            8: 'G#',
-            9: 'A',
-            10: 'A#',
-            11: 'B'
-        }
-        name = conversion[int(pitch) % 12]
-        octave = int(pitch) // 12 - 5
-        adjusted_octave = octave - previous_octave
-        if adjusted_octave < 0:
-            octave_identifier = "," * (-adjusted_octave)
-        elif adjusted_octave > 0:
-            octave_identifier = "'" * adjusted_octave
-        else:
-            octave_identifier = ""
-        return name + octave_identifier, octave
-
-    @staticmethod
-    def note_to_lilypond(pitch):
-        """Convert a pitch to lilypond note name with octave identifier.
-
-        Parameters
-        ----------
-        pitch: int
-            MIDI pitch
-
-        Returns
-        -------
-        str
-            Lilypond notation note
-        """
-        if pitch is None:
-            return "r"
-        conversion = {
-            0: 'c',
-            1: 'cis',
-            2: 'd',
-            3: 'dis',
-            4: 'e',
-            5: 'f',
-            6: 'fis',
-            7: 'g',
-            8: 'gis',
-            9: 'a',
-            10: 'ais',
-            11: 'b',
-        }
-        name = conversion[int(pitch) % 12]
-        octave = int(pitch) // 12 - 4
-        if octave < 0:
-            octave_identifier = "," * (-octave)
-        elif octave > 0:
-            octave_identifier = "'" * octave
-        else:
-            octave_identifier = ""
-        return name + octave_identifier
-
-    @staticmethod
-    def duration_to_lilypond(duration):
-        """Convert fractional duration to a lilypond duration notation.
-
-        Parameters
-        ----------
-        duration: Fraction
-            Duration as a fraction
-
-        Returns
-        -------
-        str
-            Lilypond duration
-        """
-        if duration.numerator == 1:
-            return str(duration.denominator)
-        else:
-            n = duration.numerator
-            d = duration.denominator
-            no_dot = d // 2
-            n_dots = n // 2
-            return f"{no_dot}" + "." * n_dots
-
-    def to_paeonia(self, previous_octave=0, previous_duration=Fraction("1/4")):
-        """Return paeonia representation of this note.
-
-        Returns
-        -------
-        str
-            paeonia representaiton
-        """
-        duration = Note.duration_to_lilypond(self.duration) if self.duration != previous_duration else ""
-        if self.is_rest():
-            return "R" + duration, previous_octave
-        elif len(self.pitches) < 2:
-            note_repr, octave = Note.note_to_paeonia(self.pitches[0], previous_octave=previous_octave)
-            return note_repr + duration, octave
-        else:
-            result = "<"
-            octave = previous_octave
-            note_repr, octave = Note.note_to_paeonia(self.pitches[0], previous_octave=octave)
-            result += note_repr
-            for pitch in self.pitches[1:]:
-                note_repr, octave = Note.note_to_paeonia(pitch, previous_octave=octave)
-                result += " " + note_repr
-            result += ">"
-            result += duration
-            return result, octave
-
-    def to_lilypond(self):
-        """Return lilypond representation of this note.
-
-        Returns
-        -------
-        str
-            Lilypond representation 
-        """
-        if self.is_rest():
-            return "r" + Note.duration_to_lilypond(self.duration)
-        elif len(self.pitches) < 2:
-            return Note.note_to_lilypond(self.pitches[0]) + Note.duration_to_lilypond(self.duration)
-        else:
-            return "<" + " ".join([Note.note_to_lilypond(note) for note in self.pitches]) + ">" + Note.duration_to_lilypond(self.duration)
+        from .midi import note_to_midi_messages
+        return note_to_midi_messages(self, offset=offset, tpb=tpb)
 
     def show(self):
-        """Attempts to render a lilypond file and display it on a Jupyter notebook.
-        """
-        template = Template(importlib.resources.open_text('paeonia.data', 'note_template.ly').read())
-        with tempfile.TemporaryDirectory() as tmpdir:
-            notation = template.substitute(notation=self.to_lilypond())
-            with open(os.path.join(tmpdir, 'notation.ly'), 'w') as fd:
-                fd.write(notation)
-            subprocess.run(['lilypond', '-dpreview', '--loglevel=ERROR',
-                            '-fpng', os.path.join(tmpdir, 'notation.ly')], cwd=tmpdir)
-            display(Image(filename=os.path.join(tmpdir, 'notation.preview.png')))
+        from .playback import show_note
+        show_note(self)
         return self
 
 
     def play(self, tpb=480, autoplay=False):
-        """Preview a note using fluidsynth.
-        """
-        messages = self.to_midi(tpb=tpb)
-        messages.append(MetaMessage('end_of_track', time=0))
-        midi = MidiFile(ticks_per_beat=tpb)
-        track = MidiTrack()
-        for message in messages:
-            track.append(message)
-        midi.tracks.append(track)
-        render_and_play_midi(midi, tpb, autoplay=autoplay)
+        from .playback import play_note
+        play_note(self, tpb=tpb, autoplay=autoplay)
         return self
