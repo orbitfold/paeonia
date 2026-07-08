@@ -1,8 +1,8 @@
 from pypeg2 import optional, List, maybe_some
 import pypeg2
 import re
-import paeonia
 from fractions import Fraction
+from .pitch import PitchClass, Pitch
 
 LETTER_TO_PITCH = {
     'C': 0,
@@ -14,13 +14,19 @@ LETTER_TO_PITCH = {
     'B': 11,
 }
 
+
+def make_note(pitches=(), duration=Fraction('1/4')):
+    from .note import Note as PaeoniaNote
+
+    return PaeoniaNote(pitches=tuple(pitches), duration=duration)
+
 # Define a note name (A-G)
 class NoteName(str):
     grammar = re.compile(r"[A-G]")
 
 # Define accidentals (# for sharp, b for flat)
 class Accidental(str):
-    grammar = re.compile(r"[#b]")
+    grammar = re.compile(r"(?:##|bb|#|b)")
 
 # Define octave indicators (' and ,)
 class OctaveIndicator(str):
@@ -43,25 +49,30 @@ class Note(List):
     grammar = NoteName, optional(Accidental), optional(OctaveIndicator), optional(Duration)
 
     def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
-        for c in self:
-            if isinstance(c, NoteName):
-                pitch = LETTER_TO_PITCH[str(c)]
-            elif isinstance(c, Accidental):
-                if c == '#':
-                    pitch += 1
-                else:
-                    pitch -= 1
-            elif isinstance(c, OctaveIndicator):
-                for indicator in c:
-                    if indicator == "'":
-                        octave += 1
-                    else:
-                        octave -= 1
-            elif isinstance(c, Duration):
-                duration = c.get_duration()
-        pitch = 60 + octave * 12 + pitch
+        letter = None
+        accidental = 0
+
+        for component in self:
+            if isinstance(component, NoteName):
+                letter = str(component)
+            elif isinstance(component, Accidental):
+                symbols = str(component)
+                accidental = symbols.count("#") - symbols.count("b")
+            elif isinstance(component, OctaveIndicator):
+                for indicator in component:
+                    octave += 1 if indicator == "'" else -1
+            elif isinstance(component, Duration):
+                duration = component.get_duration()
+
+        if letter is None:
+            raise ValueError("Parsed note has no letter")
+
+        pitch = Pitch(
+            PitchClass(letter, accidental),
+            octave = 4 + octave,
+        )
         self.octave = octave
-        return paeonia.Note(pitches=[pitch], duration=duration)
+        return make_note(pitches=(pitch,), duration=duration)
 
 class Rest(List):
     grammar = "R", optional(Duration)
@@ -69,26 +80,33 @@ class Rest(List):
     def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
         self.octave = octave
         if self[0] is None:
-            return paeonia.Note(pitches=[], duration=duration)
+            return make_note(duration=duration)
         else:
-            return paeonia.Note(pitches=[], duration=self[0].get_duration())
+            return make_note(duration=self[0].get_duration())
 
 # Define a chord (list of notes enclosed in < >, optionally followed by a duration)
 class Chord(List):
     grammar = "<", maybe_some(Note), ">", optional(Duration)
 
     def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
-        chord = []
-        for note in self:
-            if isinstance(note, Note):
-                parsed_note = note.get_note(octave=(octave if relative else 0), duration=duration)
-                octave = note.octave
-                duration = parsed_note.duration
-                chord.append(parsed_note.pitches[0])
-            else:
-                duration = note.get_duration()
+        pitches = []
+        chord_duration = duration
+
+        for component in self:
+            if isinstance(component, Note):
+                parsed_note = component.get_note(
+                    octave=(octave if relative else 0),
+                    duration=chord_duration,
+                    relative=relative,
+                )
+                octave = component.octave
+                chord_duration = parsed_note.duration
+                pitches += parsed_note.pitches
+            elif isinstance(component, Duration):
+                chord_duration = component.get_duration()
+
         self.octave = octave
-        return paeonia.Note(pitches=chord, duration=duration)
+        return make_note(pitches=pitches, duration=chord_duration)
 
 # Define a sequence of notes and chords
 class Music(List):

@@ -29,7 +29,9 @@ class Bar:
         return Bar(notes=new_notes)
 
     def __eq__(self, other):
-        return all(note1 == note2 for note1, note2 in zip(self, other))
+        return len(self) == len(other) and all(
+            note1 == note2 for note1, note2 in zip(self, other)
+        )
 
     def __add__(self, other):
         if isinstance(other, Bar):

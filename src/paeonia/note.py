@@ -21,6 +21,16 @@ import importlib
 from copy import copy
 import random
 
+_LILYPOND_LETTERS = {
+    "C": "c",
+    "D": "d",
+    "E": "e",
+    "F": "f",
+    "G": "g",
+    "A": "a",
+    "B": "b",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class Note:
@@ -179,6 +189,84 @@ class Note:
     def __repr__(self):
         return f"Note(\"{str(self)}\")"
 
+    @staticmethod
+    def _duration_to_paeonia(duration: Fraction) -> str:
+        duration = Fraction(duration)
+        for denominator in range(1, 129):
+            for dots in range(3):
+                candidate = Fraction(1, denominator) * (
+                    1 + Fraction(1, 2) * dots
+                )
+                if candidate == duration:
+                    return f"{denominator}{'.' * dots}"
+        raise ValueError(f"Unsupported duration: {duration}")
+
+    @staticmethod
+    def _pitch_to_paeonia(pitch: Pitch, previous_octave: int) -> tuple[str, int]:
+        octave = pitch.octave - 4
+        octave_delta = octave - previous_octave
+        if octave_delta > 0:
+            octave_marks = "'" * octave_delta
+        else:
+            octave_marks = "," * (-octave_delta)
+        return f"{pitch.pitch_class}{octave_marks}", octave
+
+    @staticmethod
+    def _pitch_to_lilypond(pitch: Pitch) -> str:
+        accidental = pitch.accidental
+        if accidental > 0:
+            accidental_text = "is" * accidental
+        else:
+            accidental_text = "es" * (-accidental)
+        octave = pitch.octave - 3
+        if octave > 0:
+            octave_marks = "'" * octave
+        else:
+            octave_marks = "," * (-octave)
+        return (
+            _LILYPOND_LETTERS[pitch.letter]
+            + accidental_text
+            + octave_marks
+        )
+
+    def _duration_suffix(self, previous_duration: Fraction) -> str:
+        if self.duration == previous_duration:
+            return ""
+        return self._duration_to_paeonia(self.duration)
+
+    def to_paeonia(
+            self,
+            previous_octave: int = 0,
+            previous_duration: Fraction = Fraction(1, 4),
+    ) -> tuple[str, int]:
+        duration = self._duration_suffix(previous_duration)
+        if self.is_rest():
+            return f"R{duration}", previous_octave
+
+        if self.is_chord:
+            pitch_text = []
+            octave = previous_octave
+            for pitch in self.pitches:
+                text, octave = self._pitch_to_paeonia(pitch, octave)
+                pitch_text.append(text)
+            return f"<{' '.join(pitch_text)}>{duration}", octave
+
+        text, octave = self._pitch_to_paeonia(self.pitches[0], previous_octave)
+        return f"{text}{duration}", octave
+
+    def to_lilypond(self) -> str:
+        duration = self._duration_to_paeonia(self.duration)
+        if self.is_rest():
+            return f"r{duration}"
+
+        if self.is_chord:
+            pitches = " ".join(
+                self._pitch_to_lilypond(pitch) for pitch in self.pitches
+            )
+            return f"<{pitches}>{duration}"
+
+        return f"{self._pitch_to_lilypond(self.pitches[0])}{duration}"
+
     def is_rest(self):
         """Is this note a rest.
 
@@ -209,7 +297,7 @@ class Note:
         assert(method in ["up", "down", "random"])
         if rnd is None:
             rnd = random
-        if self.pitches is None:
+        if self.is_rest():
             return self
         new_note = copy(self)
         new_pitches = []

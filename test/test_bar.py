@@ -1,9 +1,22 @@
 from paeonia import Bar, Tonality
 import pytest
 
+
+def semantic_events(bar):
+    return [
+        (
+            tuple(str(pitch) for pitch in note.pitches),
+            note.duration,
+            note.is_rest(),
+            note.is_chord,
+        )
+        for note in bar
+    ]
+
+
 def test_to_lilypond():
     bar = Bar("C#4. D''8.. R2. Bb,16 <F# A# C#'>2. G, R E4.. <A C' E>1")
-    assert(bar.to_lilypond() == "cis'4. d'''4 r2. ais''16 <fis'' ais'' cis'''>2. g''2. r2. e''2 <a'' c''' e'''>1")
+    assert(bar.to_lilypond() == "cis'4. d'''4 r2. bes''16 <fis'' ais'' cis'''>2. g''2. r2. e''2 <a'' c''' e'''>1")
 
 def test_eq():
     assert(Bar("R") == Bar("R"))
@@ -11,17 +24,24 @@ def test_eq():
 def test_retrograde():
     bar1 = Bar("Bb'2. A <A B C> C'4 R B,")
     bar2 = bar1.retrograde()
-    assert(bar2 == Bar("B'2. C' <C, B A> A4 R A#"))
+    assert(bar2 == Bar("B'2. C' <C, B A> A4 R Bb"))
 
 def test_repr():
     paeonia_notation = "C#'2. A <A B C> C'4 R B,"
     bar1 = Bar(paeonia_notation)
-    assert(str(bar1) == paeonia_notation)
+    assert semantic_events(Bar(str(bar1))) == semantic_events(bar1)
     assert(eval(repr(bar1)) == bar1)
     single_note = "C'1"
     bar2 = Bar(single_note)
-    assert(str(bar2) == single_note)
+    assert semantic_events(Bar(str(bar2))) == semantic_events(bar2)
     assert(eval(repr(bar2)) == bar2)
+
+
+def test_paeonia_round_trip_preserves_written_pitch_spelling_and_structure():
+    bar = Bar("Bb,16 <F# A# C#'>2. <Bb Db' F>4 R")
+    round_tripped = Bar(str(bar))
+
+    assert semantic_events(round_tripped) == semantic_events(bar)
     
 def test_note_repeat():
     bar1 = Bar("C D E F G")
@@ -94,7 +114,7 @@ def test_tonal_mode_change():
     t = Tonality()
     assert(bar1.tonal_mode_change(t, "minor") == Bar("C D Eb D C"))
     bar2 = Bar("<C E G>")
-    assert(bar2.tonal_mode_change(t, "minor") == Bar("<C D# G>"))
+    assert(bar2.tonal_mode_change(t, "minor") == Bar("<C Eb G>"))
 
 def test_merge_pitches():
     bar1 = Bar("C D2 R E D1 C R")

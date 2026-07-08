@@ -48,10 +48,20 @@ def test_rest_remains_rest_through_map_pitches_and_chromatic_transposition():
     mapped = rest.map_pitches(lambda pitch: pitch.transpose_semitones(1))
     transposed = rest.transpose_semitones(7)
 
+    assert rest.pitches == ()
     assert mapped.is_rest()
     assert transposed.is_rest()
     assert mapped == rest
     assert transposed == rest
+
+
+def test_rest_remains_rest_through_tonality_mapping():
+    rest = Note.rest(duration=Fraction(1, 8))
+
+    mapped = rest.map_tonality(tonality=None)
+
+    assert mapped.pitches == ()
+    assert mapped == rest
 
 
 def test_dataclass_equality_distinguishes_enharmonic_spellings_but_sounds_like_does_not():
