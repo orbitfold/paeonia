@@ -16,6 +16,17 @@ NATURAL_PITCH_CLASSES = {
 
 _PITCH_CLASS_RE = re.compile(r"^([A-Ga-g])([#b]*)$")
 
+
+def signed_pitch_class_difference(target: int, reference: int) -> int:
+    """Return the compact signed pitch-class displacement to target.
+
+    The result is normalized to the half-open range ``[-6, 6)``. This gives
+    conventional accidentals for normal tonal spellings, where the displacement
+    from a natural letter to the target pitch class is usually between -2 and 2.
+    """
+    return (int(target) - int(reference) + 6) % 12 - 6
+
+
 @dataclass(frozen=True, slots=True)
 class PitchClass:
     letter: str
