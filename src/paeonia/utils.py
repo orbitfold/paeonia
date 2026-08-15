@@ -1,15 +1,3 @@
-import os
-import wget
-import zipfile
-import pathlib
-import tempfile
-import ipywidgets as widgets
-from IPython.display import display, Audio
-import weakref
-import shutil
-import subprocess
-from mido import MidiFile, MidiTrack
-
 _TRANSLATE_NOTE_NAME = {
     "C": 0,
     "C#": 1,
@@ -83,57 +71,19 @@ def mode_name_to_index(mode_name):
         raise RuntimeError(f"Mode name must be in {list(_TRANSLATE_MODE_NAME)}!")
 
 def download_sf2():
-    """Download the GM soundfont to be used with fluidsynth.
-    """
-    home = pathlib.Path.home()
-    os.makedirs(home / '.paeonia', exist_ok=True)
-    sf2_location = home / '.paeonia' / 'FluidR3_GM.sf2'
-    zip_location = home / '.paeonia' / 'FluidR3_GM.zip'
-    sf2_link = 'https://keymusician01.s3.amazonaws.com/FluidR3_GM.zip'
-    if not os.path.isfile(sf2_location):
-        wget.download(sf2_link, str(home / '.paeonia'))
-        with zipfile.ZipFile(zip_location, 'r') as zip_ref:
-            zip_ref.extractall(home / '.paeonia')
-        return str(sf2_location)
-    else:
-        return str(sf2_location)
+    """Compatibility wrapper for :func:`playback.download_soundfont`."""
+    from .playback import download_soundfont
+
+    return str(download_soundfont())
 
 def message_list_to_midi_file(lst, tpb):
-    midi = MidiFile(ticks_per_beat=tpb)
-    track = MidiTrack()
-    for message in lst:
-        track.append(message)
-    midi.tracks.append(track)
-    fd, path = tempfile.mkstemp(suffix='.mid')
-    os.close(fd)
-    midi.save(path)
-    return path
+    """Compatibility wrapper for temporary MIDI-file creation."""
+    from .midi import messages_to_temporary_midi_file
+
+    return messages_to_temporary_midi_file(lst, tpb=tpb)
 
 def render_and_play_midi(midi_object, tpb=480, autoplay=True):
-    """Render a given file to audio with fluidsynth and play it back in
-    a Jupyter notebook.
+    """Compatibility wrapper for :func:`playback.play_midi`."""
+    from .playback import play_midi
 
-    Parameters
-    ----------
-    midi_object: midi
-        Mido midi object.
-    tpb: int
-        Ticks per beat.
-    autoplay: bool
-        True if should play automatically.
-    """
-    tmpdir = tempfile.mkdtemp()
-    midi_object.save(os.path.join(tmpdir, "preview.mid"))
-    sf_file = download_sf2()
-    subprocess.run(["fluidsynth", "-T", "wav", "-F", os.path.join(tmpdir, "preview.wav"),
-                    "-i", sf_file, os.path.join(tmpdir, "preview.mid")],
-                   stdout=subprocess.DEVNULL)
-    output = widgets.Output()
-    with output:
-        display(Audio(os.path.join(tmpdir, "preview.wav"), autoplay=autoplay))
-    def cleanup():
-        if os.path.exists(tmpdir):
-            shutil.rmtree(tmpdir)
-    weakref.finalize(output, cleanup)
-    display(output)
-
+    return play_midi(midi_object, autoplay=autoplay)

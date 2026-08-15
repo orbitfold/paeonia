@@ -1,19 +1,11 @@
-from mido import Message, MetaMessage, MidiFile, MidiTrack
-from paeonia.utils import download_sf2, message_list_to_midi_file, render_and_play_midi
 from paeonia.parser import parse
 from paeonia import Note
-import paeonia
-import subprocess
-import os
-from string import Template
-import importlib
-import tempfile
-from IPython.display import display, Image
 from copy import copy
 from collections.abc import Callable, Iterable, Sequence
 from itertools import cycle
 from fractions import Fraction
 import random
+import warnings
 from .pitch import Pitch
 from .tonality import ScalePosition, Tonality
 
@@ -508,16 +500,19 @@ class Bar:
             )
         ).with_tonality(tonality)
 
-    def intervals(self):
-        """Get a list of intervals for this bar.
+    def intervals(self) -> list[int]:
+        """Return successive signed MIDI-semitone intervals.
 
         Returns
         -------
-        list
-            A list of lists of intervals.
+        list[int]
+            Semitone difference between each pair of flattened pitches.
         """
         pitches = self.pitches()
-        return [b - a for a, b in zip(pitches[:-1], pitches[1:])]
+        return [
+            following.midi - previous.midi
+            for previous, following in zip(pitches[:-1], pitches[1:])
+        ]
 
     def tonal_intervals(
             self,
@@ -586,19 +581,28 @@ class Bar:
         return self.pitch_variant(lambda pitch_list: list(reversed(pitch_list)))
 
     def inversion(self):
-        """Return a bar with intervals inverted.
+        """Invert successive MIDI intervals around the first pitch.
 
         Returns
         -------
         Bar
-            A bar with invervals inverted
+            A new bar with pitch boundaries and non-pitch metadata preserved.
         """
         def invert(pitch_list):
-            intervals = self.intervals()
-            pitches = self.pitches()
-            result = [pitches[0]]
+            if not pitch_list:
+                return []
+            intervals = [
+                following.midi - previous.midi
+                for previous, following in zip(
+                    pitch_list[:-1],
+                    pitch_list[1:],
+                )
+            ]
+            result = [pitch_list[0]]
             for interval in intervals:
-                result.append(result[-1] - interval)
+                result.append(
+                    Pitch.from_midi(result[-1].midi - interval)
+                )
             return result
         return self.pitch_variant(invert)
 
@@ -824,50 +828,46 @@ class Bar:
         return Bar(result, tonality=self.tonality)
 
     def tonal_transpose(self, tonality, degrees):
-        """Transpose this bar staying in the same tonality.
+        """Deprecated wrapper around :meth:`transpose_degrees`."""
+        warnings.warn(
+            (
+                "Bar.tonal_transpose() is deprecated; "
+                "use transpose_degrees() instead."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.transpose_degrees(degrees, tonality=tonality)
 
-        Parameters
-        ----------
-        tonality: Tonality
-            Tonality we are working in.
-        degrees: int
-            How many scale degrees to shift by (up or down).
-
-        Returns
-        -------
-        Bar
-            A bar with notes tranposed.
-        """
-        new_bar = Bar()
-        for note in self:
-            indices = tonality.get_indices(note.pitches)
-            indices = [index + degrees for index in indices]
-            new_note = Note(
-                pitches=tonality.get_pitches(indices),
-                duration=note.duration,
-                velocity=note.velocity
-            )
-            new_bar += new_note
-        return new_bar
+    def tonal_mode_change(self, tonality, mode):
+        """Deprecated wrapper around :meth:`apply_tonality`."""
+        warnings.warn(
+            (
+                "Bar.tonal_mode_change() is deprecated; "
+                "use apply_tonality() instead."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        target = Tonality(tonality.tonic, mode)
+        return self.apply_tonality(target, source=tonality)
 
     def map_tonality(self, tonality, method="random", seed=7):
-        """Map all notes in the bar to a tonality.
-
-        Parameters
-        ----------
-        tonality: Tonality
-            An instance of Tonality.
-
-        Returns
-        -------
-        Bar
-            A bar with notes mapped to a tonality.
-        """
-        new_bar = Bar()
-        rnd = random.Random(seed)
-        for note in self:
-            new_bar += note.map_tonality(tonality, method=method, rnd=rnd)
-        return new_bar
+        """Deprecated wrapper around :meth:`quantize_to_tonality`."""
+        warnings.warn(
+            (
+                "Bar.map_tonality() is deprecated; "
+                "use quantize_to_tonality() instead."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        direction = "nearest" if method == "random" else method
+        return self.quantize_to_tonality(
+            tonality,
+            direction=direction,
+            tie_break="lower",
+        )
 
     def merge_pitches(self, other: "Bar") -> "Bar":
         """Merge corresponding events from rhythmically compatible bars.

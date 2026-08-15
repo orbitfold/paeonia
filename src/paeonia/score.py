@@ -443,22 +443,23 @@ class Score:
             allow_unaligned: bool = False,
     ):
         """Delegate MIDI-file export to the score renderer."""
-        if not allow_unaligned:
-            self.validate_alignment()
         from .midi import score_to_midi_file
 
-        return score_to_midi_file(self, path=path, tpb=tpb)
+        return score_to_midi_file(
+            self,
+            path=path,
+            tpb=tpb,
+            allow_unaligned=allow_unaligned,
+        )
 
     def to_lilypond(self) -> str:
         """Delegate aligned score notation to the LilyPond renderer."""
-        self.validate_alignment()
         from .lilypond import score_to_lilypond
 
         return score_to_lilypond(self)
 
     def show(self) -> "Score":
         """Render and display this aligned score, then return it."""
-        self.validate_alignment()
         from .playback import show_score
 
         show_score(self)
@@ -472,9 +473,12 @@ class Score:
             allow_unaligned: bool = False,
     ) -> "Score":
         """Render and play this score, then return it."""
-        if not allow_unaligned:
-            self.validate_alignment()
         from .playback import play_score
 
-        play_score(self, tpb=tpb, autoplay=autoplay)
+        play_score(
+            self,
+            tpb=tpb,
+            autoplay=autoplay,
+            allow_unaligned=allow_unaligned,
+        )
         return self

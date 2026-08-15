@@ -6,30 +6,8 @@ from fractions import Fraction
 
 from .pitch import Pitch
 
-from mido import Message, MetaMessage, MidiFile, MidiTrack
-from paeonia.utils import download_sf2, message_list_to_midi_file, render_and_play_midi
-import paeonia
-from paeonia.parser import parse
-import tempfile
-import subprocess
-import time
-import os
-import re
-from string import Template
-from IPython.display import display, Image
-import importlib
 from copy import copy
 import random
-
-_LILYPOND_LETTERS = {
-    "C": "c",
-    "D": "d",
-    "E": "e",
-    "F": "f",
-    "G": "g",
-    "A": "a",
-    "B": "b",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +36,7 @@ class Note:
         object.__setattr__(self, "duration", duration)
 
     def is_rest(self) -> bool:
+        """Return whether this event has no sounding pitches."""
         return not self.pitches
 
     @property
@@ -142,11 +121,6 @@ class Note:
             )
         )
 
-    def merge_pitches(self, other: "Note") -> "Note":
-        if self.duration != other.duration:
-            raise ValueError("Cannot merge notes with different durations")
-        return self.with_pitches(self.pitches + other.pitches)
-
     def sounds_like(self, other: "Note") -> bool:
         return (
             isinstance(other, Note)
@@ -211,24 +185,6 @@ class Note:
             octave_marks = "," * (-octave_delta)
         return f"{pitch.pitch_class}{octave_marks}", octave
 
-    @staticmethod
-    def _pitch_to_lilypond(pitch: Pitch) -> str:
-        accidental = pitch.accidental
-        if accidental > 0:
-            accidental_text = "is" * accidental
-        else:
-            accidental_text = "es" * (-accidental)
-        octave = pitch.octave - 3
-        if octave > 0:
-            octave_marks = "'" * octave
-        else:
-            octave_marks = "," * (-octave)
-        return (
-            _LILYPOND_LETTERS[pitch.letter]
-            + accidental_text
-            + octave_marks
-        )
-
     def _duration_suffix(self, previous_duration: Fraction) -> str:
         if self.duration == previous_duration:
             return ""
@@ -255,27 +211,10 @@ class Note:
         return f"{text}{duration}", octave
 
     def to_lilypond(self) -> str:
-        duration = self._duration_to_paeonia(self.duration)
-        if self.is_rest():
-            return f"r{duration}"
+        """Delegate spelling-aware notation rendering to ``lilypond.py``."""
+        from .lilypond import note_to_lilypond
 
-        if self.is_chord:
-            pitches = " ".join(
-                self._pitch_to_lilypond(pitch) for pitch in self.pitches
-            )
-            return f"<{pitches}>{duration}"
-
-        return f"{self._pitch_to_lilypond(self.pitches[0])}{duration}"
-
-    def is_rest(self):
-        """Is this note a rest.
-
-        Returns
-        -------
-        bool
-            True if rest, False otherwise.
-        """
-        return len(self.pitches) == 0
+        return note_to_lilypond(self)
 
     def map_tonality(self, tonality, method="random", rnd=None):
         """Map the pitches this note consists of to a tonality.

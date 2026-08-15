@@ -382,8 +382,14 @@ def test_rendering_checks_alignment_and_midi_can_opt_out(monkeypatch):
     calls = []
     midi = ModuleType("paeonia.midi")
 
-    def score_to_midi_file(passed_score, *, path, tpb):
-        calls.append((passed_score, path, tpb))
+    def score_to_midi_file(
+            passed_score,
+            *,
+            path,
+            tpb,
+            allow_unaligned,
+    ):
+        calls.append((passed_score, path, tpb, allow_unaligned))
         return "written"
 
     midi.score_to_midi_file = score_to_midi_file
@@ -394,7 +400,7 @@ def test_rendering_checks_alignment_and_midi_can_opt_out(monkeypatch):
         tpb=960,
         allow_unaligned=True,
     ) == "written"
-    assert calls == [(score, "score.mid", 960)]
+    assert calls == [(score, "score.mid", 960, True)]
 
 
 def test_staff_insertion_order_reaches_score_renderer(monkeypatch):
