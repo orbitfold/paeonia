@@ -24,12 +24,25 @@ def test_workbench_can_be_copied(tmp_path):
 
     assert result == destination.resolve()
     assert notebook["nbformat"] == 4
-    assert len(notebook["cells"]) >= 18
-    assert "Pitch.parse" in source
-    assert "apply_tonality" in source
-    assert "TonalityPlan.from_mapping" in source
-    assert "Staff(" in source
-    assert "score.to_lilypond()" in source
+    assert len(notebook["cells"]) == 8
+    assert "import paeonia" in source
+    assert 'bar = paeonia.Bar("C E G")' in source
+    assert "voice = paeonia.Voice([bar]" in source
+    assert "score = paeonia.Score(" in source
+    assert 'score["melody"] = voice' in source
+
+    namespace = {}
+    for index, cell in enumerate(notebook["cells"]):
+        if cell["cell_type"] == "code":
+            cell_source = "".join(cell["source"])
+            exec(
+                compile(cell_source, f"workbench-cell-{index}", "exec"),
+                namespace,
+            )
+
+    assert isinstance(namespace["bar"], paeonia.Bar)
+    assert isinstance(namespace["voice"], paeonia.Voice)
+    assert isinstance(namespace["score"], paeonia.Score)
 
 
 def test_public_model_exports_are_complete():
