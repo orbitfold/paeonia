@@ -10,62 +10,117 @@ import importlib
 import tempfile
 from IPython.display import display, Image
 from copy import copy
+from collections.abc import Callable, Iterable, Sequence
 from itertools import cycle
 from fractions import Fraction
 import random
+from .pitch import Pitch
+from .tonality import ScalePosition, Tonality
 
 class Bar:
-    def __init__(self, notes=None, tonality=None):
+    def __init__(
+            self,
+            notes=None,
+            tonality: Tonality | None = None,
+    ):
         if notes is None:
-            self.notes = []
+            parsed = []
         elif isinstance(notes, str):
-            self.notes = parse(notes)
+            parsed = parse(notes)
         else:
-            self.notes = notes
+            parsed = list(notes)
+
+        if not all(isinstance(note, Note) for note in parsed):
+            raise TypeError("Every bar element must be a note")
+
+        self.notes = parsed
         self.tonality = tonality
 
-    def __copy__(self):
-        new_notes = [copy(note) for note in self.notes]
-        return Bar(notes=new_notes)
-
-    def __eq__(self, other):
-        return len(self) == len(other) and all(
-            note1 == note2 for note1, note2 in zip(self, other)
+    def __copy__(self) -> "Bar":
+        return Bar(
+            notes=list(self.notes),
+            tonality=self.tonality,
         )
 
+    def __eq__(self, other) -> bool:
+        return (
+            isinstance(other, Bar)
+            and self.notes == other.notes
+            and self.tonality == other.tonality
+        )
+
+    @staticmethod
+    def _common_tonality(
+            left: Tonality | None,
+            right: Tonality | None,
+    ) -> Tonality | None:
+        if left is None:
+            return right
+        if right is None:
+            return left
+        if left != right:
+            raise ValueError("Cannot combine bars with conflicting tonalities")
+        return left
+
     def __add__(self, other):
+        """Concatenate an event or bar, or transpose up by semitones.
+
+        Concatenation preserves or resolves tonalities with
+        :meth:`_common_tonality`. Integer semitone transposition preserves the
+        bar's tonality metadata, although the resulting pitches need not be
+        diatonic in that tonality.
+        """
         if isinstance(other, Bar):
-            self_copy = copy(self)
-            for note in other.notes:
-                self_copy.notes.append(copy(note))
-            return self_copy
-        elif isinstance(other, Note):
-            self_copy = copy(self)
-            self_copy.add_note(other)
-            return self_copy
-        else:
-            new_bar = Bar()
-            for note in self.notes:
-                new_bar.notes.append(note + other)
-            return new_bar
+            tonality = self._common_tonality(
+                self.tonality,
+                other.tonality,
+            )
+            return Bar(
+                notes=[*self.notes, *other.notes],
+                tonality=tonality,
+            )
+        if isinstance(other, Note):
+            return Bar(
+                notes=[*self.notes, other],
+                tonality=self.tonality,
+            )
+        if isinstance(other, int):
+            return self.map_notes(
+                lambda note: note.transpose_semitones(other)
+            )
+        return NotImplemented
 
     def __sub__(self, other):
-        new_bar = Bar()
-        for note in self.notes:
-            new_bar.notes.append(note - other)
-        return new_bar
+        """Transpose every pitch down by a number of semitones.
+
+        The tonality metadata is preserved, but the resulting pitches need
+        not be diatonic in that tonality.
+        """
+        if isinstance(other, int):
+            return self.map_notes(
+                lambda note: note.transpose_semitones(-other)
+            )
+        return NotImplemented
 
     def __mul__(self, other):
-        new_bar = Bar()
-        for note in self.notes:
-            new_bar.notes.append(note * other)
-        return new_bar
+        """Repeat the event sequence while preserving its tonality."""
+        if not isinstance(other, int):
+            return NotImplemented
+        return Bar(
+            notes=self.notes * max(0, other),
+            tonality=self.tonality,
+        )
+
+    def __rmul__(self, other):
+        return self * other
 
     def __truediv__(self, other):
-        new_bar = Bar()
-        for note in self.notes:
-            new_bar.notes.append(note / other)
-        return new_bar
+        """Divide every duration while preserving all other bar data."""
+        if not isinstance(other, (int, Fraction)):
+            return NotImplemented
+        return self.map_notes(
+            lambda note: note.with_duration(note.duration / other)
+        )
 
     def __and__(self, other):
         return self.merge_pitches(other)
@@ -77,20 +132,18 @@ class Bar:
         return self.take(other, durations=True)
 
     def __getitem__(self, i):
+        """Select events, retaining tonality for slices and index lists."""
         if isinstance(i, slice):
-            new_bar = Bar()
-            for j in range(0 if i.start is None else i.start,
-                           len(self) if i.stop is None else (i.stop if i.stop > 0 else len(self) + i.stop),
-                           1 if i.step is None else i.step):
-                new_bar.add_note(self[j])
-            return new_bar
-        elif isinstance(i, list):
-            new_bar = Bar()
-            for index in i:
-                new_bar += self[index]
-            return new_bar
-        else:
-            return self.notes[i]
+            return Bar(
+                notes=self.notes[i],
+                tonality=self.tonality,
+            )
+        if isinstance(i, list):
+            return Bar(
+                notes=[self.notes[index] for index in i],
+                tonality=self.tonality,
+            )
+        return self.notes[i]
 
     def __setitem__(self, i, note):
         self.notes[i] = note
@@ -103,6 +156,39 @@ class Bar:
 
     def __repr__(self):
         return f"Bar(\"{str(self)}\")"
+
+    def map_notes(self, function: Callable[[Note], Note]) -> "Bar":
+        """Apply a function to every note in the bar.
+
+        Parameters
+        ----------
+        function : Callable[[Note], Note]
+            Function that maps each note to its replacement.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the mapped notes and the same tonality.
+        """
+        return Bar(notes=[function(note) for note in self.notes],
+                   tonality=self.tonality)
+
+    def map_pitches(self, function: Callable[[Pitch], Pitch]) -> "Bar":
+        """Apply a function to every pitch in the bar.
+
+        Rests are retained unchanged.
+
+        Parameters
+        ----------
+        function : Callable[[Pitch], Pitch]
+            Function that maps each pitch to its replacement.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the mapped pitches and the same tonality.
+        """
+        return self.map_notes(lambda note: note.map_pitches(function))
 
     def note_repeat(self, times):
         """Repeat notes according to the pattern provided.
@@ -126,7 +212,7 @@ class Bar:
                 yield note
 
     def repeat(self, times):
-        """Repeat the bar multiple times and append to itself.
+        """Repeat the bar while preserving its tonality.
 
         Parameters
         ----------
@@ -136,12 +222,11 @@ class Bar:
         Returns
         -------
         Bar
-            A new bar with the contents repeatest
+            A new bar containing the repeated event sequence.
         """
-        new_bar = Bar()
-        for _ in range(times):
-            new_bar = new_bar + self
-        return new_bar
+        if not isinstance(times, int):
+            raise TypeError("Repeat count must be an integer")
+        return self * times
 
     def span(self):
         """"Return the span of the bar (sum of duration of all notes).
@@ -176,32 +261,252 @@ class Bar:
             result += note.pitches
         return result
 
-    def pitch_variant(self, fn):
-        """General pitch variant method. Applies a given function to the pitches in bar.
-        Durations and rests are unaffected.
+    def pitch_variant(self, function: Callable[[list[Pitch]], Sequence[Pitch]]) -> "Bar":
+        """Transform the bar's flattened pitch sequence.
+
+        The transformed pitches are redistributed across the original notes
+        and chords. Rests and the number of pitches in each event are
+        preserved.
 
         Parameters
         ----------
-        fn: function
-            Takes a list of pitches, returns a list of pitches of the same length
+        function : Callable[[list[Pitch]], Sequence[Pitch]]
+            Function that receives all pitches as a flat list and returns a
+            replacement sequence containing the same number of pitches.
 
         Returns
         -------
         Bar
-            New, processed bar
+            A new bar containing the transformed pitches and the same
+            tonality.
+
+        Raises
+        ------
+        ValueError
+            If the transformed sequence contains a different number of
+            pitches.
         """
-        new_bar = Bar()
-        pitches = []
-        for note in self:
-            pitches += note.pitches
-        new_pitches = fn(pitches)
-        assert(len(pitches) == len(new_pitches))
-        for note in self:
+        original = [
+            pitch
+            for note in self.notes
+            for pitch in note.pitches
+        ]
+        transformed = list(function(list(original)))
+        if len(transformed) != len(original):
+            raise ValueError(
+                "A pitch variant must preserve the number of pitches"
+            )
+        iterator = iter(transformed)
+        new_notes = []
+        for note in self.notes:
             if note.is_rest():
-                new_bar.add_note(copy(note))
+                new_notes.append(note)
             else:
-                new_bar.add_note(Note(pitches=[new_pitches.pop(0) for _ in note.pitches], duration=note.duration))
-        return new_bar
+                new_notes.append(
+                    note.with_pitches(
+                        next(iterator)
+                        for _ in note.pitches
+                    )
+                )
+        return Bar(new_notes, tonality=self.tonality)
+
+    def with_tonality(self, tonality: Tonality | None) -> "Bar":
+        """Return a copy of the bar with the specified tonality.
+
+        This changes only the bar's tonal context; it does not remap the
+        pitches of its notes.
+
+        Parameters
+        ----------
+        tonality : Tonality | None
+            Tonality to associate with the new bar, or ``None`` to remove
+            the current tonal context.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the same notes and the specified tonality.
+        """
+        return Bar(
+            notes=list(self.notes),
+            tonality=tonality,
+        )
+
+    def apply_tonality(
+            self,
+            target: Tonality,
+            source: Tonality | None = None,
+            *,
+            chromatic: str = "preserve_alteration",
+            degree_policy: str = "error",
+    ) -> "Bar":
+        """Reinterpret the bar's scale positions in another tonality.
+
+        Each pitch is analyzed relative to the source tonality and realized
+        at the same scale degree, tonal octave, and chromatic alteration in
+        the target tonality. Durations, rests, chords, and other note
+        properties are preserved.
+
+        Parameters
+        ----------
+        target : Tonality
+            Tonality in which to realize the mapped pitches.
+        source : Tonality | None
+            Tonality used to analyze the existing pitches. If omitted, the
+            tonality assigned to the bar is used.
+        chromatic : str
+            Policy passed to ``Tonality.analyze_pitch`` for pitches outside
+            the source tonality.
+        degree_policy : str
+            How to handle different source and target degree counts. Use
+            ``"error"`` to reject them or ``"wrap"`` to wrap source degrees
+            modulo the target's degree count.
+
+        Returns
+        -------
+        Bar
+            A new bar mapped to and associated with the target tonality.
+
+        Raises
+        ------
+        ValueError
+            If no source tonality is available, a policy is unknown, or the
+            degree counts differ when ``degree_policy`` is ``"error"``.
+        """
+        source = self.tonality if source is None else source
+        if source is None:
+            raise ValueError(
+                "A source tonality must be supplied or assigned to the bar"
+            )
+        if degree_policy not in {"error", "wrap"}:
+            raise ValueError(f"Unknown degree policy: {degree_policy}")
+        if chromatic not in {
+                "preserve_alteration",
+                "error",
+                "nearest",
+        }:
+            raise ValueError(f"Unknown chromatic policy: {chromatic}")
+        if source.degree_count != target.degree_count:
+            if degree_policy == "error":
+                raise ValueError(
+                    "Source and target tonalities have different degree counts"
+                )
+
+        def transform(pitch: Pitch) -> Pitch:
+            position = source.analyze_pitch(
+                pitch,
+                chromatic=chromatic,
+            )
+            if position.degree >= target.degree_count:
+                position = ScalePosition(
+                    degree=position.degree % target.degree_count,
+                    tonal_octave=position.tonal_octave,
+                    alteration=position.alteration,
+                )
+            return target.realize_pitch(position)
+
+        return self.map_pitches(transform).with_tonality(target)
+
+    def quantize_to_tonality(
+            self,
+            target: Tonality,
+            *,
+            direction: str = "nearest",
+            tie_break: str = "lower",
+    ) -> "Bar":
+        """Move every pitch to a nearby pitch in a target tonality.
+
+        Quantization is based on MIDI distance rather than scale degree.
+        Rests, durations, chord structure, and other note properties are
+        preserved.
+
+        Parameters
+        ----------
+        target : Tonality
+            Tonality whose pitches are used as quantization candidates.
+        direction : str
+            Direction in which to search: ``"nearest"``, ``"up"``, or
+            ``"down"``.
+        tie_break : str
+            For equally near candidates, choose ``"lower"`` or ``"upper"``.
+
+        Returns
+        -------
+        Bar
+            A new quantized bar associated with the target tonality.
+
+        Raises
+        ------
+        ValueError
+            If a policy is unknown or no target pitch can be found in the
+            requested direction.
+        """
+        if direction not in {"nearest", "up", "down"}:
+            raise ValueError(f"Unknown quantize direction: {direction}")
+        if tie_break not in {"lower", "upper"}:
+            raise ValueError(f"Unknown quantize tie_break: {tie_break}")
+
+        def transform(pitch: Pitch) -> Pitch:
+            return target.quantize_pitch(
+                pitch,
+                direction=direction,
+                tie_break=tie_break,
+            )
+        return self.map_pitches(transform).with_tonality(target)
+
+    def transpose_degrees(
+            self,
+            degrees: int,
+            tonality: Tonality | None = None,
+            *,
+            chromatic: str = "preserve_alteration",
+    ) -> "Bar":
+        """Transpose every pitch by scale degrees within a tonality.
+
+        Positive values move pitches upward and negative values move them
+        downward. Rests, durations, chord structure, and other note
+        properties are preserved.
+
+        Parameters
+        ----------
+        degrees : int
+            Number of scale degrees by which to transpose each pitch.
+        tonality : Tonality | None
+            Tonality that defines the scale degrees. If omitted, the tonality
+            assigned to the bar is used.
+        chromatic : str
+            Policy passed to ``Tonality.transpose_pitch`` for pitches outside
+            the tonality: ``"preserve_alteration"``, ``"error"``, or
+            ``"nearest"``.
+
+        Returns
+        -------
+        Bar
+            A new transposed bar associated with the tonality used.
+
+        Raises
+        ------
+        ValueError
+            If no tonality is available, the chromatic policy is unknown, or
+            a resulting pitch falls outside the MIDI range.
+        """
+        tonality = self.tonality if tonality is None else tonality
+        if tonality is None:
+            raise ValueError("No tonality is available")
+        if chromatic not in {
+                "preserve_alteration",
+                "error",
+                "nearest",
+        }:
+            raise ValueError(f"Unknown chromatic policy: {chromatic}")
+
+        return self.map_pitches(
+            lambda pitch: tonality.transpose_pitch(
+                pitch,
+                degrees,
+                chromatic=chromatic,
+            )
+        ).with_tonality(tonality)
 
     def intervals(self):
         """Get a list of intervals for this bar.
@@ -214,19 +519,60 @@ class Bar:
         pitches = self.pitches()
         return [b - a for a, b in zip(pitches[:-1], pitches[1:])]
 
-    def tonal_intervals(self, tonality):
-        """Get a list of intervals in the tonality.
+    def tonal_intervals(
+            self,
+            tonality: Tonality | None = None,
+            *,
+            chromatic: str = "preserve_alteration",
+    ) -> list[int]:
+        """Return signed scale-degree steps between successive pitches.
+
+        Pitches are read as one flat sequence, so rests contribute no pitches
+        and pitches within chords participate in their stored order. The
+        interval values count scale-degree steps rather than semitones;
+        chromatic alterations do not change a degree when they are preserved.
+
+        Parameters
+        ----------
+        tonality : Tonality | None
+            Tonality used to analyze the pitches. If omitted, the tonality
+            assigned to the bar is used.
+        chromatic : str
+            Policy passed to ``Tonality.analyze_pitch`` for pitches outside
+            the tonality: ``"preserve_alteration"``, ``"error"``, or
+            ``"nearest"``.
 
         Returns
         -------
-        list
-            A list of intervals in the tonality.
+        list[int]
+            Signed differences between consecutive absolute scale-degree
+            positions. Bars with fewer than two pitches return an empty list.
+
+        Raises
+        ------
+        ValueError
+            If no tonality is available or the chromatic policy is unknown.
         """
-        pitches = self.pitches()
-        indices = []
-        for p in pitches:
-            indices += tonality.get_indices([p])
-        return [b - a for a, b in zip(indices[:-1], indices[1:])]
+        tonality = self.tonality if tonality is None else tonality
+        if tonality is None:
+            raise ValueError("No tonality is available")
+        if chromatic not in {
+                "preserve_alteration",
+                "error",
+                "nearest",
+        }:
+            raise ValueError(f"Unknown chromatic policy: {chromatic}")
+
+        positions = [
+            tonality.analyze_pitch(pitch, chromatic=chromatic)
+            for pitch in self.pitches()
+        ]
+        absolute = [
+            position.tonal_octave * tonality.degree_count
+            + position.degree
+            for position in positions
+        ]
+        return [b - a for a, b in zip(absolute[:-1], absolute[1:])]
 
     def retrograde(self):
         """Return a bar with a retrograde pitch variant.
@@ -256,24 +602,98 @@ class Bar:
             return result
         return self.pitch_variant(invert)
 
-    def tonal_inversion(self, tonality):
-        """Returns a bar with interals inverted and mapped to tonality.
+    def tonal_inversion(
+            self,
+            tonality: Tonality | None = None,
+            *,
+            chromatic: str = "preserve_alteration",
+    ) -> "Bar":
+        """Invert scale-degree intervals around the first pitch.
+
+        Inversion operates in absolute scale-degree coordinates, not MIDI
+        semitones. The first analyzed scale position is retained. Every later
+        degree interval has its direction negated while keeping its magnitude.
+
+        With the default ``"preserve_alteration"`` policy, the first pitch
+        keeps its alteration and every later inverted pitch receives the
+        alteration of the corresponding original pitch. Alterations themselves
+        are not inverted. ``"error"`` rejects chromatic pitches, while
+        ``"nearest"`` analyzes them as their nearest pitches in the tonality.
+
+        Parameters
+        ----------
+        tonality : Tonality | None
+            Tonality that defines the scale degrees. If omitted, the tonality
+            assigned to the bar is used.
+        chromatic : str
+            Chromatic analysis policy: ``"preserve_alteration"``, ``"error"``,
+            or ``"nearest"``.
 
         Returns
         -------
         Bar
-            A bar with intervals inverted.
+            A new tonally inverted bar with the original event boundaries and
+            the selected tonality.
+
+        Raises
+        ------
+        ValueError
+            If no tonality is available, the chromatic policy is unknown, or
+            an inverted pitch falls outside the MIDI range.
         """
-        def invert(pitch_list):
-            intervals = self.tonal_intervals(tonality)
-            pitches = self.pitches()
-            result = [pitches[0]]
+        tonality = self.tonality if tonality is None else tonality
+        if tonality is None:
+            raise ValueError("No tonality is available")
+        if chromatic not in {
+                "preserve_alteration",
+                "error",
+                "nearest",
+        }:
+            raise ValueError(f"Unknown chromatic policy: {chromatic}")
+
+        def invert(pitches: list[Pitch]) -> list[Pitch]:
+            if not pitches:
+                return []
+
+            positions = [
+                tonality.analyze_pitch(pitch, chromatic=chromatic)
+                for pitch in pitches
+            ]
+            absolute = [
+                position.tonal_octave * tonality.degree_count
+                + position.degree
+                for position in positions
+            ]
+            intervals = [
+                following - previous
+                for previous, following in zip(absolute[:-1], absolute[1:])
+            ]
+
+            inverted_absolute = [absolute[0]]
             for interval in intervals:
-                index = tonality.get_indices([result[-1]])
-                new_index = index[0] - interval
-                result.append(tonality.get_pitches([new_index])[0])
-            return result
-        return self.pitch_variant(invert)
+                inverted_absolute.append(inverted_absolute[-1] - interval)
+
+            inverted: list[Pitch] = []
+            for absolute_degree, original in zip(
+                    inverted_absolute,
+                    positions,
+            ):
+                tonal_octave, degree = divmod(
+                    absolute_degree,
+                    tonality.degree_count,
+                )
+                inverted.append(
+                    tonality.realize_pitch(
+                        ScalePosition(
+                            degree=degree,
+                            tonal_octave=tonal_octave,
+                            alteration=original.alteration,
+                        )
+                    )
+                )
+            return inverted
+
+        return self.pitch_variant(invert).with_tonality(tonality)
 
     def ascending(self):
         """Return a bar with pitches in ascending order.
@@ -283,7 +703,12 @@ class Bar:
         Bar
             A new bar with pitches in ascending order.
         """
-        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list)))
+        return self.pitch_variant(
+            lambda pitch_list: sorted(
+                pitch_list,
+                key=lambda pitch: pitch.midi,
+            )
+        )
 
     def descending(self):
         """Returns a bar with pitches in descending order.
@@ -293,7 +718,13 @@ class Bar:
         Bar
             A new bar with pitches in descending order.
         """
-        return self.pitch_variant(lambda pitch_list: list(sorted(pitch_list, key=lambda x: -x)))
+        return self.pitch_variant(
+            lambda pitch_list: sorted(
+                pitch_list,
+                key=lambda pitch: pitch.midi,
+                reverse=True,
+            )
+        )
 
     def random_order(self, seed=7):
         """Returns a bar with pitches in random order.
@@ -320,30 +751,77 @@ class Bar:
         """
         return cycle(self)
 
-    def take(self, generator, pitches=False, durations=False, velocities=False):
-        """Take specified note properties from a Note generator.
+    def take(
+            self,
+            source: "Iterable[Note] | Bar",
+            *,
+            pitches: bool = False,
+            durations: bool = False,
+            velocities: bool = False,
+    ) -> "Bar":
+        """Copy selected note properties from a sequence of donor notes.
+
+        This operation is immutable: neither this bar nor the donor notes are
+        modified. Unselected properties, including tie metadata, remain those
+        of the receiving notes, and the returned bar retains this bar's
+        tonality. A source bar is cycled as needed; any other iterable must
+        contain at least as many notes as this bar.
 
         Parameters
         ----------
-        generator: Generator, Bar
-            A Note generator
-        pitches: bool
-            Whether to take pitches
-        durations: bool
-            Whether to take durations
-        velocities: bool
-            Whether to take velocities
+        source : Iterable[Note] | Bar
+            Notes from which selected properties are copied. A bar repeats
+            cyclically when it is shorter than the receiving bar.
+        pitches : bool
+            Copy each donor's pitches when true.
+        durations : bool
+            Copy each donor's duration when true.
+        velocities : bool
+            Copy each donor's velocity when true.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the combined note properties and this bar's
+            tonality.
+
+        Raises
+        ------
+        ValueError
+            If a nonempty bar takes from an empty source bar or a finite source
+            does not contain enough notes.
+        TypeError
+            If the source yields an object that is not a ``Note``.
         """
-        if isinstance(generator, Bar):
-            generator = Bar.cycle()
-        for note in self:
-            next_note = next(generator)
+        if not any((pitches, durations, velocities)):
+            return copy(self)
+
+        if isinstance(source, Bar):
+            if self.notes and not source.notes:
+                raise ValueError("Cannot take notes from an empty source bar")
+            donors = source.cycle()
+        else:
+            donors = iter(source)
+
+        result: list[Note] = []
+        for note in self.notes:
+            try:
+                donor = next(donors)
+            except StopIteration as exc:
+                raise ValueError(
+                    "Source does not contain enough notes"
+                ) from exc
+            if not isinstance(donor, Note):
+                raise TypeError("Take source must yield Note objects")
+            replacement = note
             if pitches:
-                note.pitches = list(next_note.pitches)
+                replacement = replacement.with_pitches(donor.pitches)
             if durations:
-                note.duration = next_note.duration
+                replacement = replacement.with_duration(donor.duration)
             if velocities:
-                note.velocity = next_note.velocity
+                replacement = replacement.with_velocity(donor.velocity)
+            result.append(replacement)
+        return Bar(result, tonality=self.tonality)
 
     def tonal_transpose(self, tonality, degrees):
         """Transpose this bar staying in the same tonality.
@@ -372,31 +850,6 @@ class Bar:
             new_bar += new_note
         return new_bar
 
-    def tonal_mode_change(self, tonality, new_mode):
-        """Change the mode of the current notes in the bar.
-
-        Parameters
-        ----------
-        tonality: Tonality
-            Tonality we are working in.
-        new_mode: str
-            Name of the new mode.
-
-        Returns
-        -------
-        Bar
-            A new bar with mode changed.
-        """
-        new_tonality = paeonia.Tonality(tonality.root, new_mode)
-        def mode_change(pitches):
-            result = []
-            for p in pitches:
-                index = tonality.get_indices([p])
-                new_pitch = new_tonality.get_pitches(index)
-                result += new_pitch
-            return result
-        return self.pitch_variant(mode_change)
-
     def map_tonality(self, tonality, method="random", seed=7):
         """Map all notes in the bar to a tonality.
 
@@ -416,101 +869,245 @@ class Bar:
             new_bar += note.map_tonality(tonality, method=method, rnd=rnd)
         return new_bar
 
-    def merge_pitches(self, other):
-        """Merges the pitches of two bars. The two bars have to have the
-        same number of notes with the same durations.
+    def merge_pitches(self, other: "Bar") -> "Bar":
+        """Merge corresponding events from rhythmically compatible bars.
 
         Parameters
         ----------
-        other: Bar
-            A bar to merge.
+        other : Bar
+            Bar with the same event count and corresponding durations.
 
         Returns
         -------
         Bar
-           A new bar where pitches of this and other bar are merged.
-        """
-        new_bar = Bar()
-        for note1, note2 in zip(self, other.cycle()):
-            new_bar += note1 & note2
-        return new_bar
+            A new bar whose events contain the left pitches followed by the
+            right pitches. Note metadata comes from the left bar, and the
+            common tonality is preserved.
 
-    def pulses_to_durations(self, pulses, legato=True, unit=Fraction("1/16"), offset=0):
-        """Convert a list of pulses into durations. If there are more pulses
-        in the string than there are notes in this bar, the notes will be looped.
+        Raises
+        ------
+        TypeError
+            If ``other`` is not a bar.
+        ValueError
+            If the bars have different event counts, corresponding durations
+            differ, or their explicit tonalities conflict.
+        """
+        if not isinstance(other, Bar):
+            raise TypeError("Can only merge pitches with another bar")
+        tonality = self._common_tonality(
+            self.tonality,
+            other.tonality,
+        )
+        if len(self) != len(other):
+            raise ValueError("Bars must contain the same number of events")
+
+        merged_notes = []
+        for index, (left, right) in enumerate(zip(self, other)):
+            if left.duration != right.duration:
+                raise ValueError(
+                    f"Bar durations differ at event {index}"
+                )
+            merged_notes.append(left.merge_pitches(right))
+        return Bar(notes=merged_notes, tonality=tonality)
+
+    def pulses_to_durations(
+            self,
+            pulses: str,
+            legato: bool = True,
+            unit: Fraction = Fraction("1/16"),
+            offset: int = 0,
+            emit_ties: bool = False,
+    ) -> "Bar":
+        """Apply an onset pattern to this bar's events.
+
+        Each ``"x"`` starts the next event from this bar, cycling the source
+        events when necessary. Each ``"."`` is either a unit rest or, in
+        legato mode, a continuation of the preceding onset. Dots before the
+        first onset remain rests.
+
+        In the default legato representation, an onset and its continuation
+        frames become one event whose duration is their combined length. Set
+        ``emit_ties`` to represent the same sounding duration as separate
+        unit-length events: sounding continuations receive internal tie flags,
+        while no ties are introduced for rest spans. The source event's
+        velocity, pitches, and ties at the outer boundaries are retained.
+
+        Generated rests use :meth:`Note.rest`. Source events are transformed
+        with :meth:`Note.with_pitches`, :meth:`Note.with_duration`, and, when
+        needed, :meth:`Note.with_ties`; they are not reconstructed from a
+        subset of their fields.
 
         Parameters
         ----------
-        pulses: str
-            A string of pulses where a pulse is marked by 'x' and a rest is marked by '.'
-        legato: bool
-            If set to False it will each pulse and rest will be of unit length. Otherwise
-            rests and notes will be tied if they are consecutive.
-        unit: Fraction
-            Base duration.
-        offset: int
-            Which note to start with.
+        pulses : str
+            Pattern whose onsets are ``"x"`` and whose rests or continuation
+            frames are ``"."``.
+        legato : bool, default=True
+            Merge each onset with the following dot frames. When false, every
+            pattern character produces one unit-length event.
+        unit : Fraction, default=Fraction(1, 16)
+            Duration of one pattern frame. It must be positive.
+        offset : int, default=0
+            Number of frames by which to rotate the pattern to the left.
+        emit_ties : bool, default=False
+            When both this option and ``legato`` are true, emit one sounding
+            event per frame and connect those frames with ties instead of
+            merging them into a single longer event. Rest spans stay merged
+            and receive no generated ties. It has no effect when ``legato``
+            is false.
 
         Returns
         -------
         Bar
-            A new bar with durations generated from the pulses list.
+            A new bar with the generated rhythm and this bar's tonality.
+
+        Raises
+        ------
+        TypeError
+            If ``pulses`` is not a string or ``offset`` is not an integer.
+        ValueError
+            If the pattern contains characters other than ``"x"`` and
+            ``"."``, ``unit`` is not positive, or an onset is requested from
+            an empty bar.
         """
+        if not isinstance(pulses, str):
+            raise TypeError("pulses must be a string")
+        if not isinstance(offset, int):
+            raise TypeError("offset must be an integer")
+
+        unit = Fraction(unit)
+        if unit <= 0:
+            raise ValueError("unit must be positive")
+
+        invalid_characters = set(pulses) - {"x", "."}
+        if invalid_characters:
+            invalid = "".join(sorted(invalid_characters))
+            raise ValueError(f"Invalid pulse character(s): {invalid!r}")
+        if not pulses:
+            return Bar(tonality=self.tonality)
+        if "x" in pulses and not self.notes:
+            raise ValueError("Cannot emit pulse onsets from an empty bar")
+
+        offset %= len(pulses)
         pulses = pulses[offset:] + pulses[:offset]
-        notes = self.cycle()
-        new_bar = Bar()
-        duration = 0
-        note = None
-        if legato:
-            for c in pulses:
-                if c == 'x':
-                    if note is None and duration > 0:
-                        new_bar += Note(pitches=[], duration=duration)
-                    elif duration > 0:
-                        new_bar += Note(pitches=note.pitches, duration=duration, velocity=note.velocity)
-                    note = next(notes)
-                    duration = unit
-                elif c == '.':
-                    duration += unit
-            if note is not None:
-                new_bar += Note(pitches=note.pitches, duration=duration, velocity=note.velocity)
-            else:
-                new_bar += Note(pitches=[], duration=duration)
-        else:
-            for c in pulses:
-                if c == 'x':
-                    note = next(notes)
-                    new_bar += Note(pitches=note.pitches, duration=unit, velocity=note.velocity)
-                elif c == '.':
-                    new_bar += Note(pitches=[], duration=unit)
-        return new_bar
+        source_notes = self.cycle()
+        generated_notes = []
 
-    def euclidean_rhythm(self, n, k, legato=True, unit=Fraction("1/16"), offset=0):
-        """Generate a euclidean rhythm.
+        def resize(source: Note, duration: Fraction) -> Note:
+            # Use Note's immutable transformations so every metadata field is
+            # retained. with_pitches is explicit because pulse mapping copies
+            # the complete pitch spelling of the source event.
+            return source.with_pitches(source.pitches).with_duration(duration)
+
+        if not legato:
+            for pulse in pulses:
+                if pulse == "x":
+                    generated_notes.append(resize(next(source_notes), unit))
+                else:
+                    generated_notes.append(Note.rest(unit))
+            return Bar(generated_notes, tonality=self.tonality)
+
+        index = 0
+        while index < len(pulses):
+            if pulses[index] == ".":
+                end = index + 1
+                while end < len(pulses) and pulses[end] == ".":
+                    end += 1
+                frame_count = end - index
+                generated_notes.append(Note.rest(frame_count * unit))
+                index = end
+                continue
+
+            source = next(source_notes)
+            end = index + 1
+            while end < len(pulses) and pulses[end] == ".":
+                end += 1
+            frame_count = end - index
+
+            if not emit_ties or source.is_rest():
+                generated_notes.append(
+                    resize(source, frame_count * unit)
+                )
+            else:
+                for frame in range(frame_count):
+                    first = frame == 0
+                    last = frame == frame_count - 1
+                    generated_notes.append(
+                        resize(source, unit).with_ties(
+                            tie_in=source.tie_in if first else True,
+                            tie_out=source.tie_out if last else True,
+                        )
+                    )
+            index = end
+
+        return Bar(generated_notes, tonality=self.tonality)
+
+    def euclidean_rhythm(
+            self,
+            n: int,
+            k: int,
+            legato: bool = True,
+            unit: Fraction = Fraction("1/16"),
+            offset: int = 0,
+            emit_ties: bool = False,
+    ) -> "Bar":
+        """Distribute ``k`` onsets as evenly as possible over ``n`` frames.
+
+        Source events are selected cyclically at the generated onsets. Rhythm
+        realization is delegated to :meth:`pulses_to_durations`, so merged
+        legato durations, explicit tied events, metadata preservation, pattern
+        rotation, and tonality behave identically in both methods.
 
         Parameters
         ----------
-        n: int
-            The n parameter for the algorithm (length of the bar in units).
-        k: int
-            The k parameter for the algorithm (number of pulses).
-        legato: bool
-            Whether to elongate the pulses until the next note.
-        unit: Fraction
-            Base duration.
-        offset: int
-            Which note to start with.
+        n : int
+            Positive number of frames in the generated rhythm.
+        k : int
+            Number of onsets. It must be between zero and ``n``, inclusive.
+        legato : bool, default=True
+            Merge each onset with its following continuation frames.
+        unit : Fraction, default=Fraction(1, 16)
+            Duration of one frame.
+        offset : int, default=0
+            Number of frames by which to rotate the generated pattern left.
+        emit_ties : bool, default=False
+            In legato mode, emit separate tied unit-length sounding events
+            instead of one longer event for each onset span.
 
         Returns
         -------
         Bar
-           A bar containing the rhythm.
+            A bar containing the Euclidean rhythm and this bar's tonality.
+
+        Raises
+        ------
+        TypeError
+            If ``n`` or ``k`` is not an integer.
+        ValueError
+            If ``n`` is not positive or ``k`` is outside ``0 <= k <= n``.
         """
-        assert(n >= k)
-        lst = list(range(-1, n))
-        lst = [(x * k) % n for x in lst]
-        pulses = ['x' if x > y else '.' for x, y in zip(lst[:-1], lst[1:])]
-        return self.pulses_to_durations(''.join(pulses), legato=legato, unit=unit, offset=offset)
+        if not isinstance(n, int) or not isinstance(k, int):
+            raise TypeError("n and k must be integers")
+        if n <= 0:
+            raise ValueError("n must be positive")
+        if not 0 <= k <= n:
+            raise ValueError("k must satisfy 0 <= k <= n")
+
+        if k == n:
+            pulses = "x" * n
+        else:
+            remainders = [(frame * k) % n for frame in range(-1, n)]
+            pulses = ''.join(
+                "x" if left > right else "."
+                for left, right in zip(remainders[:-1], remainders[1:])
+            )
+        return self.pulses_to_durations(
+            pulses,
+            legato=legato,
+            unit=unit,
+            offset=offset,
+            emit_ties=emit_ties,
+        )
 
     def map_melody_to_tonality(self, tonality):
         """Attempts to map notes in the bar to a tonality while maintaining
@@ -529,16 +1126,8 @@ class Bar:
         return copy(self)
 
     def to_midi(self, offset=0, tpb=480):
-        """Return MIDI messages corresponding to this bar.
-        """
-        messages = []
-        for note in self.notes:
-            if note.is_rest():
-                offset += int(tpb * 4 * note.duration)
-            else:
-                messages += note.to_midi(offset, tpb)
-                offset = 0
-        return messages, offset
+        from .midi import bar_to_midi_messages
+        return bar_to_midi_messages(self, offset=offset, tpb=tpb)
 
     def to_paeonia(self):
         """Return paeonia notation representation of this bar.
@@ -561,37 +1150,16 @@ class Bar:
             
 
     def to_lilypond(self):
-        """Return lilypond notation representation of this bar.
+        from .lilypond import bar_to_lilypond
+        return bar_to_lilypond(self)
 
-        Returns
-        -------
-        str
-            Lilypond notation representing all the notes in the bar
-        """
-        return " ".join([note.to_lilypond() for note in self])
 
     def show(self):
-        """Attempts to render a lilypond file and display it on a Jupyter notebook.
-        """
-        template = Template(importlib.resources.open_text('paeonia.data', 'bar_template.ly').read())
-        with tempfile.TemporaryDirectory() as tmpdir:
-            notation = template.substitute(notation=self.to_lilypond())
-            with open(os.path.join(tmpdir, 'notation.ly'), 'w') as fd:
-                fd.write(notation)
-            subprocess.run(['lilypond', '-dpreview', '--loglevel=ERROR',
-                            '-fpng', os.path.join(tmpdir, 'notation.ly')], cwd=tmpdir)
-            display(Image(filename=os.path.join(tmpdir, 'notation.preview.png')))
+        from .playback import show_bar
+        show_bar(self)
         return self
 
     def play(self, tpb=480, autoplay=False):
-        """Preview a note using fluidsynth.
-        """
-        messages, _ = self.to_midi(tpb=tpb)
-        messages.append(MetaMessage('end_of_track', time=0))
-        midi = MidiFile(ticks_per_beat=tpb)
-        track = MidiTrack()
-        for message in messages:
-            track.append(message)
-        midi.tracks.append(track)
-        render_and_play_midi(midi, tpb, autoplay=autoplay)
+        from .playback import play_bar
+        play_bar(self, tpb=tpb, autoplay=autoplay)
         return self

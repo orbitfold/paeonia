@@ -315,7 +315,7 @@ class Note:
         new_note.pitches = new_pitches
         return new_note
 
-    def merge_pitches(self, other):
+    def merge_pitches(self, other: "Note") -> "Note":
         """Merge the pitches of two notes (into a chord).
 
         Parameters
@@ -326,12 +326,16 @@ class Note:
         Returns
         -------
         Note
-            A note with pitches merged.
+            A copy carrying this note's metadata and both pitch sequences.
+
+        Raises
+        ------
+        ValueError
+            If the notes have different durations.
         """
-        new_note = copy(self)
-        new_note.pitches += other.pitches
-        new_note.pitches = list(sorted(new_note.pitches))
-        return new_note  
+        if self.duration != other.duration:
+            raise ValueError("Cannot merge notes with different durations")
+        return self.with_pitches(self.pitches + other.pitches)
       
     def to_midi(self, offset=0, tpb=480):
         from .midi import note_to_midi_messages

@@ -78,11 +78,15 @@ class Rest(List):
     grammar = "R", optional(Duration)
 
     def get_note(self, octave=0, duration=Fraction('1/4'), relative=True):
+        from .note import Note as PaeoniaNote
+
         self.octave = octave
-        if self[0] is None:
-            return make_note(duration=duration)
-        else:
-            return make_note(duration=self[0].get_duration())
+        rest_duration = (
+            duration
+            if self[0] is None
+            else self[0].get_duration()
+        )
+        return PaeoniaNote.rest(duration=rest_duration)
 
 # Define a chord (list of notes enclosed in < >, optionally followed by a duration)
 class Chord(List):

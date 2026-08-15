@@ -137,3 +137,69 @@ def test_chromatic_scale_analysis_uses_exact_pitch_class_membership():
 
     assert tonality.analyze_pitch(Pitch.parse("F#4")) == ScalePosition(6, 5)
     assert tonality.realize_pitch(ScalePosition(6, 5)) == Pitch.parse("F#4")
+
+
+def test_deprecated_closest_delegates_to_quantize_pitch_and_warns(monkeypatch):
+    tonality = Tonality("C")
+    pitch = Pitch.parse("F#4")
+    calls = []
+    original = Tonality.quantize_pitch
+
+    def quantize(self, passed_pitch, **options):
+        calls.append((self, passed_pitch, options))
+        return original(self, passed_pitch, **options)
+
+    monkeypatch.setattr(Tonality, "quantize_pitch", quantize)
+
+    with pytest.warns(DeprecationWarning, match="Tonality.closest"):
+        result = tonality.closest(pitch)
+
+    assert calls == [(tonality, pitch, {})]
+    assert result == [Pitch.parse("F4"), Pitch.parse("G4")]
+
+
+def test_deprecated_get_pitches_delegates_to_realize_pitch_and_warns(
+    monkeypatch,
+):
+    tonality = Tonality("C")
+    calls = []
+    original = Tonality.realize_pitch
+
+    def realize(self, position):
+        calls.append((self, position))
+        return original(self, position)
+
+    monkeypatch.setattr(Tonality, "realize_pitch", realize)
+
+    with pytest.warns(DeprecationWarning, match="Tonality.get_pitches"):
+        result = tonality.get_pitches([35, 36])
+
+    assert calls == [
+        (tonality, ScalePosition(0, 5)),
+        (tonality, ScalePosition(1, 5)),
+    ]
+    assert result == [Pitch.parse("C4"), Pitch.parse("D4")]
+
+
+def test_deprecated_get_indices_delegates_to_analyze_pitch_and_warns(
+    monkeypatch,
+):
+    tonality = Tonality("C")
+    pitches = [Pitch.parse("C4"), Pitch.parse("D4")]
+    calls = []
+    original = Tonality.analyze_pitch
+
+    def analyze(self, pitch, **options):
+        calls.append((self, pitch, options))
+        return original(self, pitch, **options)
+
+    monkeypatch.setattr(Tonality, "analyze_pitch", analyze)
+
+    with pytest.warns(DeprecationWarning, match="Tonality.get_indices"):
+        result = tonality.get_indices(pitches)
+
+    assert calls == [
+        (tonality, pitches[0], {"chromatic": "error"}),
+        (tonality, pitches[1], {"chromatic": "error"}),
+    ]
+    assert result == [35, 36]
