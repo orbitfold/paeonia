@@ -3,7 +3,6 @@ from .bar import Bar
 from .voice import Voice
 from .score import Score
 from .tonality import Tonality
-from .triadex import MuseFrame, TriadexMuse, muse_widget
 
 __all__ = [
     "Note",
@@ -11,7 +10,4 @@ __all__ = [
     "Voice",
     "Score",
     "Tonality",
-    "MuseFrame",
-    "TriadexMuse",
-    "muse_widget",
 ]
