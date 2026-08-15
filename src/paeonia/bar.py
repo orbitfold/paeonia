@@ -1,11 +1,12 @@
-from paeonia.parser import parse
-from paeonia import Note
 from copy import copy
 from collections.abc import Callable, Iterable, Sequence
 from itertools import cycle
 from fractions import Fraction
 import random
 import warnings
+
+from .note import Note
+from .parser import parse
 from .pitch import Pitch
 from .tonality import ScalePosition, Tonality
 

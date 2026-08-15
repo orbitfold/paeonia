@@ -147,7 +147,8 @@ class Note:
         return True
 
     def __mul__(self, other):
-        from paeonia import Bar
+        from .bar import Bar
+
         b = Bar()
         for _ in range(other):
             b += self

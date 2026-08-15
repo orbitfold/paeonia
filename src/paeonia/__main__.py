@@ -14,6 +14,32 @@ from typing import List, Optional, Sequence
 DEFAULT_NOTEBOOK = "paeonia_workbench.ipynb"
 
 
+def _smoke_check() -> None:
+    """Import every public model component before doing launcher work."""
+    from .bar import Bar
+    from .note import Note
+    from .pitch import Pitch, PitchClass
+    from .score import Score
+    from .staff import Staff
+    from .tonality import ScalePosition, Tonality, TonalityPlan
+    from .voice import Voice
+
+    # Retaining the references until all imports complete makes this a useful
+    # check for both missing modules and circular imports.
+    _ = (
+        PitchClass,
+        Pitch,
+        ScalePosition,
+        Tonality,
+        TonalityPlan,
+        Note,
+        Bar,
+        Voice,
+        Staff,
+        Score,
+    )
+
+
 def copy_workbench(destination: Path, reset: bool = False) -> Path:
     """Copy the bundled notebook to an editable user location."""
 
@@ -77,6 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    _smoke_check()
     args = build_parser().parse_args(argv)
     notebook = copy_workbench(args.path, reset=args.reset)
     print(f"Paeonia workbench: {notebook}")

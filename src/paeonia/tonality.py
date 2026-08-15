@@ -1,11 +1,9 @@
 from __future__ import annotations
 from collections.abc import Sequence, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 import warnings
 
-from itertools import cycle
-import paeonia
-from paeonia.utils import note_name_to_pitch_class, mode_name_to_index
+from .note import Note
 from .pitch import (
     NATURAL_PITCH_CLASSES,
     Pitch,
@@ -419,7 +417,7 @@ class Tonality:
 
     def __contains__(self, other: object) -> bool:
         """Return whether a pitch, MIDI pitch, note, or pitch group belongs."""
-        if isinstance(other, paeonia.Note):
+        if isinstance(other, Note):
             return all(pitch in self for pitch in other.pitches)
 
         if isinstance(other, Pitch):
