@@ -94,6 +94,71 @@ class Voice:
     def __len__(self):
         return len(self.bars)
 
+    def tonality_at(
+            self,
+            bar_index: int,
+            *,
+            inherited: Tonality | None = None,
+            inherited_plan: TonalityPlan | None = None,
+    ) -> Tonality | None:
+        """Resolve the effective tonality at a bar index.
+
+        Resolution proceeds from the most local context to the least local:
+        a bar override, the voice's tonal plan, its default tonality, an
+        inherited plan, and finally the inherited default. Plan changes remain
+        active after their change index.
+
+        Parameters
+        ----------
+        bar_index : int
+            Zero-based index of a bar in this voice.
+        inherited : Tonality | None
+            Default tonality inherited from a containing score.
+        inherited_plan : TonalityPlan | None
+            Score-level tonal changes indexed by bar position.
+
+        Returns
+        -------
+        Tonality | None
+            Resolved tonality, or ``None`` if no level defines one.
+
+        Raises
+        ------
+        TypeError
+            If an index or inherited tonal context has the wrong type.
+        IndexError
+            If ``bar_index`` does not identify a bar in this voice.
+        """
+        if not isinstance(bar_index, int):
+            raise TypeError("bar_index must be an integer")
+        if not 0 <= bar_index < len(self.bars):
+            raise IndexError(f"bar index out of range: {bar_index}")
+        if inherited is not None and not isinstance(inherited, Tonality):
+            raise TypeError("inherited must be a Tonality or None")
+        if inherited_plan is not None and not isinstance(
+                inherited_plan,
+                TonalityPlan,
+        ):
+            raise TypeError("inherited_plan must be a TonalityPlan or None")
+
+        bar_tonality = self.bars[bar_index].tonality
+        if bar_tonality is not None:
+            return bar_tonality
+        inherited_context = (
+            inherited_plan.at(bar_index, fallback=inherited)
+            if inherited_plan is not None
+            else inherited
+        )
+        voice_fallback = (
+            self.default_tonality
+            if self.default_tonality is not None
+            else inherited_context
+        )
+        return self.tonality_plan.at(
+            bar_index,
+            fallback=voice_fallback,
+        )
+
     def apply_tonality(
             self,
             target: Tonality,
@@ -173,26 +238,14 @@ class Voice:
 
         transformed: list[Bar] = []
         for index, bar in enumerate(self.bars):
-            inherited_context = (
-                inherited_plan.at(index, fallback=inherited)
-                if inherited_plan is not None
-                else inherited
-            )
-            voice_fallback = (
-                self.default_tonality
-                if self.default_tonality is not None
-                else inherited_context
-            )
-            planned = self.tonality_plan.at(
-                index,
-                fallback=voice_fallback,
-            )
             if source is not None:
                 effective_source = source
-            elif bar.tonality is not None:
-                effective_source = bar.tonality
             else:
-                effective_source = planned
+                effective_source = self.tonality_at(
+                    index,
+                    inherited=inherited,
+                    inherited_plan=inherited_plan,
+                )
             if effective_source is None:
                 raise ValueError(
                     f"No source tonality is available for bar {index}"
