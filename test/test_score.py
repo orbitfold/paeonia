@@ -51,7 +51,7 @@ def test_dictionary_access_and_compatibility_views_use_staves():
     assert score.staves["lead"].clef == "treble"
 
 
-def test_score_slice_copies_aligned_bars_and_preserves_metadata():
+def test_score_slice_is_aligned_bar_window_and_preserves_metadata():
     c_major = Tonality("C")
     g_major = Tonality("G")
     d_major = Tonality("D")
@@ -112,10 +112,31 @@ def test_score_slice_copies_aligned_bars_and_preserves_metadata():
     ) == ("treble", "Lead staff", 2, 11, "Lead voice")
     assert excerpt.staves["lead"] is not score.staves["lead"]
     assert excerpt["lead"] is not score["lead"]
-    assert excerpt["lead"].bars[0] is not score["lead"].bars[1]
+    assert excerpt["lead"].bars[0] is score["lead"].bars[1]
 
-    excerpt["lead"].bars[0].notes.clear()
-    assert len(score["lead"].bars[1]) == 1
+    replacement = Bar("A")
+    excerpt["lead"][0] = replacement
+    assert score["lead"][1] is replacement
+
+    source_replacement = Bar("B")
+    score["lead"][2] = source_replacement
+    assert excerpt["lead"][1] is source_replacement
+
+    detached = excerpt.copy()
+    detached["lead"][0] = Bar("C")
+    assert score["lead"][1] is replacement
+
+    with pytest.raises(TypeError, match="fixed-size score window"):
+        excerpt["lead"].add_bar(Bar("C"))
+
+
+def test_temporary_score_slice_assignment_updates_original_score():
+    score = Score()
+    score["piano"] = Voice([Bar("R1") for _ in range(16)])
+
+    score[8:16]["piano"][0] = Bar("C1")
+
+    assert score["piano"][8] == Bar("C1")
 
 
 def test_score_slice_rebases_voice_plan_and_preserves_bar_overrides():

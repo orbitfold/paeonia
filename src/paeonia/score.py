@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Iterable, Mapping, MutableSequence
 from copy import copy
 from dataclasses import replace
 from typing import overload
 
+from .bar import Bar
 from .staff import Staff, VALID_CLEFS
 from .tonality import Tonality, TonalityPlan
 from .voice import Voice
@@ -72,6 +73,83 @@ def _slice_tonal_context(
         if start < index < stop
     ))
     return sliced_default, sliced_plan
+
+
+class _BarWindow(MutableSequence[Bar]):
+    """Fixed-size mutable window onto a voice's underlying bar sequence."""
+
+    def __init__(
+            self,
+            bars: MutableSequence[Bar],
+            start: int,
+            stop: int,
+    ) -> None:
+        self._bars: MutableSequence[Bar] = bars
+        self._start: int = start
+        self._stop: int = stop
+
+    def __len__(self) -> int:
+        start = min(self._start, len(self._bars))
+        stop = min(self._stop, len(self._bars))
+        return max(0, stop - start)
+
+    def _source_index(self, index: int) -> int:
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError("bar window index out of range")
+        return self._start + index
+
+    @overload
+    def __getitem__(self, index: int) -> Bar: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[Bar]: ...
+
+    def __getitem__(self, index: int | slice) -> Bar | list[Bar]:
+        if isinstance(index, slice):
+            return [
+                self[position]
+                for position in range(*index.indices(len(self)))
+            ]
+        return self._bars[self._source_index(index)]
+
+    @overload
+    def __setitem__(self, index: int, value: Bar) -> None: ...
+
+    @overload
+    def __setitem__(
+            self,
+            index: slice,
+            value: Iterable[Bar],
+    ) -> None: ...
+
+    def __setitem__(
+            self,
+            index: int | slice,
+            value: Bar | Iterable[Bar],
+    ) -> None:
+        if isinstance(index, slice):
+            if isinstance(value, Bar):
+                raise TypeError("Slice assignment requires an iterable of bars")
+            positions = list(range(*index.indices(len(self))))
+            replacements = list(value)
+            if len(replacements) != len(positions):
+                raise ValueError("cannot resize a fixed-size score window")
+            if not all(isinstance(bar, Bar) for bar in replacements):
+                raise TypeError("Every voice element must be a Bar")
+            for position, replacement in zip(positions, replacements):
+                self._bars[self._source_index(position)] = replacement
+            return
+        if not isinstance(value, Bar):
+            raise TypeError("Every voice element must be a Bar")
+        self._bars[self._source_index(index)] = value
+
+    def __delitem__(self, index: int | slice) -> None:
+        raise TypeError("cannot resize a fixed-size score window")
+
+    def insert(self, index: int, value: Bar) -> None:
+        raise TypeError("cannot resize a fixed-size score window")
 
 
 class Score:
@@ -154,14 +232,16 @@ class Score:
     @overload
     def __getitem__(self, key: slice) -> "Score": ...
 
-    def __getitem__(self, key: str | slice) -> Voice | "Score":
-        """Return a named voice or an aligned, independent bar slice.
+    def __getitem__(self, key: str | slice) -> Voice | Score:
+        """Return a named voice or an aligned mutable bar window.
 
         A slice is applied to every staff after alignment validation. Score
-        and staff metadata are preserved, bars are copied, and score- and
-        voice-level tonal plans are rebased so the effective context at the
-        first selected bar becomes the new default. Only ordinary forward
-        slices are supported because tonal plans are chronological.
+        and staff metadata are preserved, while each sliced voice retains a
+        fixed-size window onto the original bar sequence. Replacing or
+        mutating a bar through that window therefore updates the source score.
+        Score- and voice-level tonal plans are rebased so the effective context
+        at the first selected bar becomes the new default. Only ordinary
+        forward slices are supported because tonal plans are chronological.
 
         Parameters
         ----------
@@ -171,7 +251,7 @@ class Score:
         Returns
         -------
         Voice | Score
-            The named voice, or a new score containing the selected bars.
+            The named voice, or a score window containing the selected bars.
 
         Raises
         ------
@@ -217,10 +297,14 @@ class Score:
                 stop=stop,
             )
             sliced_voice = Voice(
-                bars=[copy(bar) for bar in voice.bars[start:stop]],
                 default_tonality=voice_default,
                 tonality_plan=voice_plan,
                 name=voice.name,
+            )
+            sliced_voice.bars = _BarWindow(
+                voice.bars,
+                start,
+                stop,
             )
             result.staves[name] = replace(staff, voice=sliced_voice)
 

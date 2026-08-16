@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, MutableSequence
 from copy import copy
 from fractions import Fraction
+from typing import overload
 
 from .bar import Bar
 from .tonality import Tonality, TonalityPlan
@@ -47,7 +48,9 @@ class Voice:
             tonality_plan: TonalityPlan | Mapping[int, Tonality] | None = None,
             name: str | None = None,
     ) -> None:
-        self.bars = [] if bars is None else list(bars)
+        self.bars: MutableSequence[Bar] = (
+            [] if bars is None else list(bars)
+        )
         if not all(isinstance(bar, Bar) for bar in self.bars):
             raise TypeError("Every voice element must be a Bar")
         if default_tonality is not None and not isinstance(
@@ -77,18 +80,21 @@ class Voice:
         self.tonality_plan = normalized_plan
         self.name = name
 
-    def __getitem__(self, i):
+    @overload
+    def __getitem__(self, i: int) -> Bar: ...
+
+    @overload
+    def __getitem__(self, i: slice) -> "Voice": ...
+
+    def __getitem__(self, i: int | slice) -> Bar | Voice:
         if isinstance(i, slice):
             new_voice = Voice()
-            for j in range(0 if i.start is None else i.start,
-                           len(self) if i.stop is None else i.stop,
-                           1 if i.step is None else i.step):
+            for j in range(*i.indices(len(self))):
                 new_voice.add_bar(copy(self[j]))
             return new_voice
-        else:
-            return self.bars[i]
+        return self.bars[i]
 
-    def __setitem__(self, i, bar):
+    def __setitem__(self, i: int, bar: Bar) -> None:
         self.bars[i] = bar
 
     def __len__(self):
@@ -294,7 +300,7 @@ class Voice:
         """
         return tuple(Fraction(bar.span()) for bar in self.bars)
 
-    def add_bar(self, bar):
+    def add_bar(self, bar: Bar) -> None:
         """Add a new bar to this voice.
 
         Parameters
