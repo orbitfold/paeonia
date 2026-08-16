@@ -531,12 +531,16 @@ def test_staff_insertion_order_reaches_score_renderer(monkeypatch):
     calls = []
     lilypond = ModuleType("paeonia.lilypond")
 
-    def score_to_lilypond(passed_score):
-        calls.append(tuple(passed_score.staves))
+    def score_to_lilypond(passed_score, *, bar_numbers):
+        calls.append((tuple(passed_score.staves), bar_numbers))
         return "rendered score"
 
     lilypond.score_to_lilypond = score_to_lilypond
     monkeypatch.setitem(sys.modules, "paeonia.lilypond", lilypond)
 
     assert score.to_lilypond() == "rendered score"
-    assert calls == [("zeta", "alpha")]
+    assert score.to_lilypond(bar_numbers=False) == "rendered score"
+    assert calls == [
+        (("zeta", "alpha"), True),
+        (("zeta", "alpha"), False),
+    ]

@@ -4,8 +4,4 @@
   tagline = ##f
 }
 
-\score {
-  <<
-  $notation
-  >>
-}
+$notation

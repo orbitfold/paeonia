@@ -260,9 +260,9 @@ def show_voice(voice: Voice) -> None:
     )
 
 
-def show_score(score: Score) -> None:
-    """Render and display an aligned score with LilyPond."""
+def show_score(score: Score, *, bar_numbers: bool = True) -> None:
+    """Render and display an aligned score, showing bar numbers by default."""
     _show_lilypond(
-        score_to_lilypond(score),
+        score_to_lilypond(score, bar_numbers=bar_numbers),
         template_name="score_template.ly",
     )

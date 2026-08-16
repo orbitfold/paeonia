@@ -177,6 +177,51 @@ def test_score_uses_inherited_tonality_and_staff_insertion_order():
     assert rendered.count("\\key g \\major") == 2
 
 
+def test_score_shows_every_bar_number_by_default_and_can_opt_out():
+    score = Score(time_signature=(4, 4))
+    score["lead"] = Voice([Bar("C1"), Bar("D1")])
+
+    rendered = score_to_lilypond(score)
+
+    assert "barNumberVisibility = #all-bar-numbers-visible" in rendered
+    assert (
+        "\\override BarNumber.break-visibility = ##(#t #t #t)"
+        in rendered
+    )
+    assert rendered.count("\\score {") == 1
+
+    without_numbers = score_to_lilypond(score, bar_numbers=False)
+    assert "barNumberVisibility" not in without_numbers
+    assert "BarNumber.break-visibility" not in without_numbers
+    assert without_numbers.startswith("\\score {")
+
+
+def test_score_bar_number_option_reaches_model_and_playback(monkeypatch):
+    score = Score()
+    score["lead"] = Voice([Bar("C")])
+    calls = []
+
+    def show_score(passed_score, *, bar_numbers):
+        calls.append((passed_score, bar_numbers))
+
+    monkeypatch.setattr(playback, "show_score", show_score)
+
+    assert "barNumberVisibility" in score.to_lilypond()
+    assert "barNumberVisibility" not in score.to_lilypond(
+        bar_numbers=False,
+    )
+    assert score.show() is score
+    assert score.show(bar_numbers=False) is score
+    assert calls == [(score, True), (score, False)]
+
+
+def test_score_bar_number_option_requires_boolean():
+    score = Score()
+
+    with pytest.raises(TypeError, match="bar_numbers must be a boolean"):
+        score_to_lilypond(score, bar_numbers="all")
+
+
 def test_score_rendering_rejects_misalignment_before_output():
     score = Score()
     score["lead"] = Voice([Bar("C"), Bar("D")])

@@ -137,8 +137,34 @@ def _escape_lilypond_string(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def score_to_lilypond(score: Score) -> str:
-    """Render aligned staves in insertion order as a LilyPond score body."""
+def _score_layout_to_lilypond(*, bar_numbers: bool) -> str:
+    """Render score layout settings controlled by Paeonia options."""
+    if not isinstance(bar_numbers, bool):
+        raise TypeError("bar_numbers must be a boolean")
+    if not bar_numbers:
+        return ""
+    return "\n".join((
+        "\\layout {",
+        "  \\context {",
+        "    \\Score",
+        "    barNumberVisibility = #all-bar-numbers-visible",
+        "    \\override BarNumber.break-visibility = ##(#t #t #t)",
+        "  }",
+        "}",
+    ))
+
+
+def score_to_lilypond(
+        score: Score,
+        *,
+        bar_numbers: bool = True,
+) -> str:
+    """Render an aligned score as a complete LilyPond score expression.
+
+    Bar numbers are shown at every measure by default, including the first
+    measure and measures between system breaks. Pass ``bar_numbers=False`` to
+    retain LilyPond's standard bar-number visibility.
+    """
     score.validate_alignment()
     rendered_staves = []
     for name, staff in score.staves.items():
@@ -158,4 +184,14 @@ def score_to_lilypond(score: Score) -> str:
             f"\\time {score.time_signature[0]}/{score.time_signature[1]} "
             f"\\tempo 4 = {score.tempo} {voice} \\bar \"|.\" }}"
         )
-    return "\n".join(rendered_staves)
+    layout = _score_layout_to_lilypond(bar_numbers=bar_numbers)
+    score_body = "\n".join(
+        (
+            "\\score {",
+            "  <<",
+            *(f"    {staff}" for staff in rendered_staves),
+            "  >>",
+            "}",
+        )
+    )
+    return "\n".join(part for part in (layout, score_body) if part)

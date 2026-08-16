@@ -544,17 +544,17 @@ class Score:
             allow_unaligned=allow_unaligned,
         )
 
-    def to_lilypond(self) -> str:
-        """Delegate aligned score notation to the LilyPond renderer."""
+    def to_lilypond(self, *, bar_numbers: bool = True) -> str:
+        """Render the score, showing every bar number by default."""
         from .lilypond import score_to_lilypond
 
-        return score_to_lilypond(self)
+        return score_to_lilypond(self, bar_numbers=bar_numbers)
 
-    def show(self) -> "Score":
-        """Render and display this aligned score, then return it."""
+    def show(self, *, bar_numbers: bool = True) -> "Score":
+        """Display the score with optional bar numbers, then return it."""
         from .playback import show_score
 
-        show_score(self)
+        show_score(self, bar_numbers=bar_numbers)
         return self
 
     def play(
