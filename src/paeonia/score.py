@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Collection, Mapping
 from copy import copy
 from dataclasses import replace
+from typing import overload
 
 from .staff import Staff, VALID_CLEFS
 from .tonality import Tonality, TonalityPlan
@@ -54,6 +55,23 @@ def _copy_voice(voice: Voice) -> Voice:
 def _copy_staff(staff: Staff) -> Staff:
     """Return a staff copy whose mutable voice and bars are also copied."""
     return replace(staff, voice=_copy_voice(staff.voice))
+
+
+def _slice_tonal_context(
+        default: Tonality | None,
+        plan: TonalityPlan,
+        *,
+        start: int,
+        stop: int,
+) -> tuple[Tonality | None, TonalityPlan]:
+    """Rebase a persistent tonal context onto a forward bar slice."""
+    sliced_default = plan.at(start, fallback=default)
+    sliced_plan = TonalityPlan(tuple(
+        (index - start, tonality)
+        for index, tonality in plan.changes
+        if start < index < stop
+    ))
+    return sliced_default, sliced_plan
 
 
 class Score:
@@ -130,9 +148,83 @@ class Score:
             raise TypeError("Score values must be Voice or Staff instances")
         self.staves[name] = value
 
-    def __getitem__(self, name: str) -> Voice:
-        """Return the voice stored under ``name``."""
-        return self.staves[name].voice
+    @overload
+    def __getitem__(self, key: str) -> Voice: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> "Score": ...
+
+    def __getitem__(self, key: str | slice) -> Voice | "Score":
+        """Return a named voice or an aligned, independent bar slice.
+
+        A slice is applied to every staff after alignment validation. Score
+        and staff metadata are preserved, bars are copied, and score- and
+        voice-level tonal plans are rebased so the effective context at the
+        first selected bar becomes the new default. Only ordinary forward
+        slices are supported because tonal plans are chronological.
+
+        Parameters
+        ----------
+        key : str | slice
+            Staff name, or a forward slice of bar indices.
+
+        Returns
+        -------
+        Voice | Score
+            The named voice, or a new score containing the selected bars.
+
+        Raises
+        ------
+        ValueError
+            If staves are not aligned or the slice has a non-unit step.
+        TypeError
+            If ``key`` is neither a staff name nor a slice.
+        """
+        if isinstance(key, str):
+            return self.staves[key].voice
+        if not isinstance(key, slice):
+            raise TypeError("Score indices must be staff names or slices")
+        if key.step not in {None, 1}:
+            raise ValueError("Score slicing only supports a step of 1")
+
+        self.validate_alignment()
+        bar_count = (
+            len(next(iter(self.staves.values())).voice)
+            if self.staves
+            else 0
+        )
+        start, stop, _ = key.indices(bar_count)
+        score_default, score_plan = _slice_tonal_context(
+            self.default_tonality,
+            self.tonality_plan,
+            start=start,
+            stop=stop,
+        )
+        result = Score(
+            default_tonality=score_default,
+            tonality_plan=score_plan,
+            tempo=self.tempo,
+            time_signature=self.time_signature,
+            title=self.title,
+        )
+
+        for name, staff in self.staves.items():
+            voice = staff.voice
+            voice_default, voice_plan = _slice_tonal_context(
+                voice.default_tonality,
+                voice.tonality_plan,
+                start=start,
+                stop=stop,
+            )
+            sliced_voice = Voice(
+                bars=[copy(bar) for bar in voice.bars[start:stop]],
+                default_tonality=voice_default,
+                tonality_plan=voice_plan,
+                name=voice.name,
+            )
+            result.staves[name] = replace(staff, voice=sliced_voice)
+
+        return result
 
     @property
     def voices(self) -> dict[str, Voice]:

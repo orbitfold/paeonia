@@ -51,6 +51,127 @@ def test_dictionary_access_and_compatibility_views_use_staves():
     assert score.staves["lead"].clef == "treble"
 
 
+def test_score_slice_copies_aligned_bars_and_preserves_metadata():
+    c_major = Tonality("C")
+    g_major = Tonality("G")
+    d_major = Tonality("D")
+    score = Score(
+        default_tonality=c_major,
+        tonality_plan={1: g_major, 3: d_major},
+        tempo=84,
+        time_signature=(3, 4),
+        title="Excerpt",
+    )
+    score["lead"] = Staff(
+        Voice(
+            [Bar(note) for note in ("C", "D", "E", "F", "G")],
+            name="Lead voice",
+        ),
+        clef="treble",
+        name="Lead staff",
+        midi_channel=2,
+        midi_program=11,
+    )
+    score["bass"] = Staff(
+        Voice(
+            [Bar(note) for note in ("C,", "D,", "E,", "F,", "G,")],
+            name="Bass voice",
+        ),
+        clef="bass",
+        name="Bass staff",
+        midi_channel=3,
+        midi_program=42,
+    )
+
+    excerpt = score[1:4]
+
+    assert isinstance(excerpt, Score)
+    assert excerpt is not score
+    assert excerpt.tempo == 84
+    assert excerpt.time_signature == (3, 4)
+    assert excerpt.title == "Excerpt"
+    assert excerpt.default_tonality is g_major
+    assert excerpt.tonality_plan == TonalityPlan(((2, d_major),))
+    assert tuple(excerpt.staves) == ("lead", "bass")
+    assert tuple(str(bar) for bar in excerpt["lead"].bars) == (
+        "D",
+        "E",
+        "F",
+    )
+    assert tuple(str(bar) for bar in excerpt["bass"].bars) == (
+        "D,",
+        "E,",
+        "F,",
+    )
+    assert (
+        excerpt.staves["lead"].clef,
+        excerpt.staves["lead"].name,
+        excerpt.staves["lead"].midi_channel,
+        excerpt.staves["lead"].midi_program,
+        excerpt["lead"].name,
+    ) == ("treble", "Lead staff", 2, 11, "Lead voice")
+    assert excerpt.staves["lead"] is not score.staves["lead"]
+    assert excerpt["lead"] is not score["lead"]
+    assert excerpt["lead"].bars[0] is not score["lead"].bars[1]
+
+    excerpt["lead"].bars[0].notes.clear()
+    assert len(score["lead"].bars[1]) == 1
+
+
+def test_score_slice_rebases_voice_plan_and_preserves_bar_overrides():
+    c_major = Tonality("C")
+    g_major = Tonality("G")
+    d_major = Tonality("D")
+    f_major = Tonality("F")
+    a_major = Tonality("A")
+    bb_major = Tonality("Bb")
+    score = Score(
+        default_tonality=c_major,
+        tonality_plan={1: g_major, 4: f_major},
+    )
+    score["lead"] = Voice(
+        [
+            Bar("C"),
+            Bar("G"),
+            Bar("D"),
+            Bar("Bb", tonality=bb_major),
+            Bar("A"),
+        ],
+        tonality_plan={2: d_major, 4: a_major},
+    )
+
+    excerpt = score[1:5]
+
+    assert excerpt.default_tonality is g_major
+    assert excerpt.tonality_plan == TonalityPlan(((3, f_major),))
+    assert excerpt["lead"].default_tonality is None
+    assert excerpt["lead"].tonality_plan == TonalityPlan((
+        (1, d_major),
+        (3, a_major),
+    ))
+    assert tuple(
+        excerpt.tonality_at("lead", index)
+        for index in range(4)
+    ) == (g_major, d_major, bb_major, a_major)
+    assert excerpt["lead"].bars[2].tonality is bb_major
+
+
+def test_score_slice_rejects_unaligned_staves_and_non_unit_steps():
+    unaligned = Score()
+    unaligned["lead"] = Voice([Bar("C"), Bar("D")])
+    unaligned["bass"] = Voice([Bar("C")])
+
+    with pytest.raises(ValueError, match="'bass'.*1 bars"):
+        _ = unaligned[0:1]
+
+    aligned = Score()
+    aligned["lead"] = Voice([Bar("C"), Bar("D")])
+    with pytest.raises(ValueError, match="step of 1"):
+        _ = aligned[::2]
+    with pytest.raises(TypeError, match="staff names or slices"):
+        _ = aligned[0]
+
+
 def test_staff_insertion_and_set_clef_preserve_attached_metadata():
     score = Score()
     staff = Staff(
