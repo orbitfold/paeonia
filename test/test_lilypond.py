@@ -1,4 +1,7 @@
 from fractions import Fraction
+from pathlib import Path
+import sys
+from types import ModuleType
 
 import pytest
 
@@ -235,3 +238,53 @@ def test_missing_lilypond_has_useful_error(monkeypatch):
     monkeypatch.setattr(playback.shutil, "which", lambda name: None)
     with pytest.raises(FileNotFoundError, match="LilyPond.*PATH"):
         playback.show_note(Note.parse("C"))
+
+
+def test_lilypond_preview_displays_every_page_in_numeric_order(
+        monkeypatch,
+        tmp_path,
+):
+    commands = []
+    displayed = []
+
+    class FixedTemporaryDirectory:
+        def __enter__(self):
+            return str(tmp_path)
+
+        def __exit__(self, exception_type, exception, traceback):
+            return False
+
+    def run(command, *, cwd, check):
+        commands.append((command, Path(cwd), check))
+        for page in (10, 2, 1):
+            (Path(cwd) / f"notation-page{page}.png").touch()
+
+    display_module = ModuleType("IPython.display")
+    display_module.Image = lambda *, filename: filename
+    display_module.display = displayed.append
+
+    monkeypatch.setattr(
+        playback,
+        "_require_executable",
+        lambda name, *, display_name: "/usr/bin/lilypond",
+    )
+    monkeypatch.setattr(
+        playback.tempfile,
+        "TemporaryDirectory",
+        FixedTemporaryDirectory,
+    )
+    monkeypatch.setattr(playback.subprocess, "run", run)
+    monkeypatch.setitem(sys.modules, "IPython.display", display_module)
+
+    playback._show_lilypond(
+        "c'4",
+        template_name="note_template.ly",
+    )
+
+    assert len(commands) == 1
+    assert "-dno-page-breaking" not in commands[0][0]
+    assert displayed == [
+        str(tmp_path / "notation-page1.png"),
+        str(tmp_path / "notation-page2.png"),
+        str(tmp_path / "notation-page10.png"),
+    ]

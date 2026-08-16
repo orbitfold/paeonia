@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from importlib.resources import files
 from pathlib import Path
+import re
 import shutil
 from string import Template
 import subprocess
@@ -37,6 +38,8 @@ SOUNDFONT_URL = (
     "https://keymusician01.s3.amazonaws.com/FluidR3_GM.zip"
 )
 SOUNDFONT_NAME = "FluidR3_GM.sf2"
+
+_LILYPOND_PAGE_RE = re.compile(r"-page(\d+)\.png$")
 
 
 def download_soundfont() -> Path:
@@ -205,7 +208,15 @@ def _lilypond_document(template_name: str, notation: str) -> str:
     return template.substitute(notation=notation)
 
 
+def _lilypond_page_sort_key(path: Path) -> tuple[int, str]:
+    """Sort LilyPond PNG pages numerically, including a single-page file."""
+    match = _LILYPOND_PAGE_RE.search(path.name)
+    page = int(match.group(1)) if match is not None else 0
+    return page, path.name
+
+
 def _show_lilypond(notation: str, *, template_name: str) -> None:
+    """Render and display every page produced by LilyPond."""
     lilypond = _require_executable("lilypond", display_name="LilyPond")
     document = _lilypond_document(template_name, notation)
     with tempfile.TemporaryDirectory() as directory:
@@ -216,24 +227,24 @@ def _show_lilypond(notation: str, *, template_name: str) -> None:
             [
                 lilypond,
                 "--loglevel=ERROR",
-                "-dno-page-breaking",
                 "-fpng",
                 str(source),
             ],
             cwd=temporary,
             check=True,
         )
-        image_path = temporary / "notation.png"
-        if not image_path.is_file():
-            candidates = tuple(temporary.glob("notation*.png"))
-            if not candidates:
-                raise FileNotFoundError(
-                    "LilyPond completed without producing a PNG file"
-                )
-            image_path = candidates[0]
+        image_paths = sorted(
+            temporary.glob("notation*.png"),
+            key=_lilypond_page_sort_key,
+        )
+        if not image_paths:
+            raise FileNotFoundError(
+                "LilyPond completed without producing a PNG file"
+            )
         from IPython.display import Image, display
 
-        display(Image(filename=str(image_path)))
+        for image_path in image_paths:
+            display(Image(filename=str(image_path)))
 
 
 def show_note(note: Note) -> None:
