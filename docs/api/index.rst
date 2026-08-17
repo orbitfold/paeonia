@@ -7,6 +7,6 @@ and renderer functions live in their dedicated modules.
 .. toctree::
    :maxdepth: 2
 
-   model
+   model/index
    tools
    rendering

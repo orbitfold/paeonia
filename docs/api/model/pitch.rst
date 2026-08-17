@@ -1,0 +1,4 @@
+Pitch
+=====
+
+.. autoclass:: paeonia.Pitch

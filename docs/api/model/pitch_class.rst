@@ -1,0 +1,4 @@
+PitchClass
+==========
+
+.. autoclass:: paeonia.PitchClass

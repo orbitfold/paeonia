@@ -1,0 +1,4 @@
+Score
+=====
+
+.. autoclass:: paeonia.Score

@@ -1,0 +1,4 @@
+Tonality
+========
+
+.. autoclass:: paeonia.Tonality

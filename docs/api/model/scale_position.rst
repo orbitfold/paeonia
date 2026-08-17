@@ -1,0 +1,4 @@
+ScalePosition
+=============
+
+.. autoclass:: paeonia.ScalePosition

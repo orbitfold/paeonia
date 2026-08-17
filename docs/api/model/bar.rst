@@ -1,0 +1,4 @@
+Bar
+===
+
+.. autoclass:: paeonia.Bar

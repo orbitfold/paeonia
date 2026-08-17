@@ -1,0 +1,4 @@
+TonalityPlan
+============
+
+.. autoclass:: paeonia.TonalityPlan

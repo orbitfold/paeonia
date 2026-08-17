@@ -1,0 +1,4 @@
+Staff
+=====
+
+.. autoclass:: paeonia.Staff
