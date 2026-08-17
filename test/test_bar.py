@@ -1,5 +1,6 @@
 from copy import copy
 from fractions import Fraction
+from itertools import cycle
 
 from paeonia import Bar, Note, Tonality
 from paeonia.pitch import Pitch
@@ -283,7 +284,7 @@ def test_take():
     bar1 = Bar("C D E F G")
     bar2 = Bar("C2 G, F")
     pitches = bar1.take(bar2, pitches=True)
-    durations = bar2.take(pitches.cycle(), durations=True)
+    durations = bar2.take(cycle(pitches), durations=True)
 
     assert str(pitches) == "C G, F C' G,"
     assert str(durations) == "C G, F"

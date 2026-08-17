@@ -746,16 +746,6 @@ class Bar:
             return new_pitch_list
         return self.pitch_variant(shuffle)
 
-    def cycle(self):
-        """Create a Note generator that returns the notes in this bar in a loop.
-
-        Returns
-        -------
-        Generator
-            Returns an infinite stream of repeating notes
-        """
-        return cycle(self)
-
     def take(
             self,
             source: "Iterable[Note] | Bar",
@@ -804,7 +794,7 @@ class Bar:
         if isinstance(source, Bar):
             if self.notes and not source.notes:
                 raise ValueError("Cannot take notes from an empty source bar")
-            donors = source.cycle()
+            donors = cycle(source.notes)
         else:
             donors = iter(source)
 
