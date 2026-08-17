@@ -9,4 +9,5 @@ and renderer functions live in their dedicated modules.
 
    model/index
    tools
+   transform
    rendering
