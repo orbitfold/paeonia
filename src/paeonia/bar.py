@@ -1110,22 +1110,6 @@ class Bar:
             emit_ties=emit_ties,
         )
 
-    def map_melody_to_tonality(self, tonality):
-        """Attempts to map notes in the bar to a tonality while maintaining
-        the shape of the melody.
-
-        Parameters
-        ----------
-        tonality: Tonality
-            An instance of Tonality.
-
-        Returns
-        -------
-        Bar
-            A bar with notes mapped to a tonality.
-        """
-        return copy(self)
-
     def to_midi(self, offset=0, tpb=480):
         from .midi import bar_to_midi_messages
         return bar_to_midi_messages(self, offset=offset, tpb=tpb)

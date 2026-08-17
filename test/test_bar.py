@@ -692,15 +692,6 @@ def test_tonal_inversion_nearest_policy_quantizes_anchor():
 
     assert inverted == Bar("F", tonality=tonality)
 
-@pytest.mark.skip()
-def test_map_melody_to_tonality():
-    bar1 = Bar("C E D# A, A# C'")
-    t = Tonality()
-    assert(bar1.map_melody_to_tonality(t) == Bar("C E D A, B C'"))    
-    with pytest.raises(RuntimeError):
-        bar2 = Bar("C <E F> D# A, A# C'")
-        bar2.map_melody_to_tonality(t)
-
 def test_deprecated_tonal_transpose_delegates_and_warns(monkeypatch):
     bar = Bar("C D E")
     tonality = Tonality("C")
