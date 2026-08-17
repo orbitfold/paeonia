@@ -28,6 +28,7 @@ ENV/
 .coverage.*
 coverage.xml
 htmlcov/
+docs/_build/
 
 # Jupyter-generated checkpoints
 .ipynb_checkpoints/

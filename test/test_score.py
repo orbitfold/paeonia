@@ -139,6 +139,26 @@ def test_temporary_score_slice_assignment_updates_original_score():
     assert score["piano"][8] == Bar("C1")
 
 
+def test_filling_voice_through_score_slice_updates_original_score():
+    score = Score()
+    original_bars = [Bar("R4") for _ in range(4)]
+    score["piano"] = Voice(original_bars)
+
+    window_voice = score[1:3]["piano"]
+    result = window_voice.fill(
+        Note.parse(note) for note in ("C4", "D4")
+    )
+
+    assert result is window_voice
+    assert score["piano"].bars == [
+        Bar("R4"),
+        Bar("C4"),
+        Bar("D4"),
+        Bar("R4"),
+    ]
+    assert original_bars == [Bar("R4") for _ in range(4)]
+
+
 def test_score_slice_rebases_voice_plan_and_preserves_bar_overrides():
     c_major = Tonality("C")
     g_major = Tonality("G")

@@ -81,6 +81,45 @@ def test_empty_voice_has_zero_span_and_no_bar_spans():
     assert voice.bar_spans() == ()
 
 
+def test_fill_replaces_bar_entries_without_mutating_old_bars():
+    c_major = Tonality("C")
+    original_bars = [Bar("R4"), Bar("R4")]
+    voice = Voice(
+        original_bars,
+        default_tonality=c_major,
+        tonality_plan={1: Tonality("G")},
+        name="Lead",
+    )
+    bar_sequence = voice.bars
+
+    result = voice.fill(Note.parse(note) for note in ("C4", "D4"))
+
+    assert result is voice
+    assert voice.bars is bar_sequence
+    assert voice.bars == [Bar("C4"), Bar("D4")]
+    assert all(
+        replacement is not original
+        for replacement, original in zip(voice.bars, original_bars)
+    )
+    assert original_bars == [Bar("R4"), Bar("R4")]
+    assert voice.default_tonality is c_major
+    assert voice.tonality_plan == TonalityPlan(((1, Tonality("G")),))
+    assert voice.name == "Lead"
+
+
+def test_fill_failure_leaves_voice_unchanged():
+    original_bars = [Bar("R4"), Bar("R4")]
+    voice = Voice(original_bars)
+
+    with pytest.raises(ValueError, match="bar 1"):
+        voice.fill([Note.parse("C4")])
+
+    assert all(
+        actual is original
+        for actual, original in zip(voice.bars, original_bars)
+    )
+
+
 def test_apply_tonality_resolves_sources_by_precedence(monkeypatch):
     default = Tonality("C")
     bar_specific = Tonality("A")

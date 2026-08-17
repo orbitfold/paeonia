@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, MutableSequence
+from collections.abc import Iterable, Iterator, Mapping, MutableSequence
 from copy import copy
 from fractions import Fraction
 from typing import overload
 
 from .bar import Bar
+from .note import Note
 from .tonality import Tonality, TonalityPlan
 
 
@@ -99,6 +100,10 @@ class Voice:
 
     def __len__(self):
         return len(self.bars)
+
+    def __iter__(self) -> Iterator[Bar]:
+        """Iterate over bars in voice order."""
+        return iter(self.bars)
 
     def tonality_at(
             self,
@@ -309,6 +314,43 @@ class Voice:
             A Bar object
         """
         self.bars.append(bar)
+
+    def fill(self, notes: Iterable[Note]) -> "Voice":
+        """Replace this voice's bars with events from ``notes``.
+
+        Existing bars provide the finite rhythmic structure and explicit bar
+        tonalities. Events are consumed in order, split and tied where they
+        cross bar boundaries, and consecutive rests are combined within each
+        bar. The voice's default tonality, tonal plan, and name are unchanged.
+
+        The operation mutates this voice by replacing its bar entries, but it
+        does not mutate any existing :class:`Bar`. Retaining the underlying
+        bar sequence also allows a voice obtained from a score slice to update
+        the corresponding bars in the original score. Filling is atomic: if
+        event validation or exhaustion fails, this voice remains unchanged.
+
+        Parameters
+        ----------
+        notes : Iterable[Note]
+            Finite or infinite source of notes, chords, and rests.
+
+        Returns
+        -------
+        Voice
+            This modified voice, allowing method chaining.
+
+        Raises
+        ------
+        TypeError
+            If the source produces an object that is not a note.
+        ValueError
+            If the source ends before all existing bars are filled.
+        """
+        from .tools import fill_bars
+
+        filled = fill_bars(self, notes)
+        self.bars[:] = filled.bars
+        return self
 
     def to_midi(self, tpb: int = 480):
         """Return MIDI messages for the complete voice.

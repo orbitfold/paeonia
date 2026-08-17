@@ -25,6 +25,7 @@ def test_workbench_can_be_copied(tmp_path):
     assert result == destination.resolve()
     assert notebook["nbformat"] == 4
     assert len(notebook["cells"]) == 8
+    assert 'run_line_magic("autoreload", "2")' in source
     assert "import paeonia" in source
     assert 'bar = paeonia.Bar("C E G")' in source
     assert "voice = paeonia.Voice([bar]" in source

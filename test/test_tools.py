@@ -3,8 +3,8 @@ from fractions import Fraction
 
 import pytest
 
-from paeonia import Bar, Note
-from paeonia.tools import note_repeat, turn_notes_off
+from paeonia import Bar, Note, Tonality, Voice
+from paeonia.tools import fill_bars, note_repeat, turn_notes_off
 
 
 def test_note_repeat_cycles_notes_and_counts_independently():
@@ -228,3 +228,121 @@ def test_turn_notes_off_rejects_non_boolean_extension_option():
             [True],
             extend_previous="yes",
         ))
+
+
+def test_fill_bars_accepts_voice_and_preserves_spans_and_tonalities():
+    c_major = Tonality("C")
+    g_major = Tonality("G")
+    a_minor = Tonality("A", "minor")
+    templates = Voice([
+        Bar("R2", tonality=c_major),
+        Bar("R2"),
+    ], default_tonality=a_minor, tonality_plan={1: g_major}, name="melody")
+    notes = [Note.parse(note) for note in ("C4", "D4", "E4", "F4")]
+
+    result = fill_bars(templates, iter(notes))
+
+    assert isinstance(fill_bars([], iter(())), Voice)
+    assert result.bar_spans() == templates.bar_spans()
+    assert result.default_tonality is a_minor
+    assert result.tonality_plan is templates.tonality_plan
+    assert result.name == "melody"
+    assert result.bars[0].tonality is c_major
+    assert result.bars[1].tonality is None
+    assert result.tonality_at(0) is c_major
+    assert result.tonality_at(1) is g_major
+    assert result.bars[0].notes == notes[:2]
+    assert result.bars[1].notes == notes[2:]
+    assert result.bars[0][0] is notes[0]
+
+
+def test_fill_bars_splits_chord_across_multiple_bars_with_ties():
+    templates = [Bar("R4") for _ in range(3)]
+    chord = Note.parse("<C E G>2.").with_velocity(0.4)
+
+    result = fill_bars(templates, [chord])
+
+    assert [bar.span() for bar in result] == [
+        Fraction(1, 4),
+        Fraction(1, 4),
+        Fraction(1, 4),
+    ]
+    segments = [bar[0] for bar in result]
+    assert all(segment.pitches == chord.pitches for segment in segments)
+    assert all(segment.velocity == chord.velocity for segment in segments)
+    assert [segment.duration for segment in segments] == [
+        Fraction(1, 4),
+        Fraction(1, 4),
+        Fraction(1, 4),
+    ]
+    assert [
+        (segment.tie_in, segment.tie_out)
+        for segment in segments
+    ] == [(False, True), (True, True), (True, False)]
+
+
+def test_fill_bars_places_split_tail_before_next_source_note():
+    templates = [Bar("R4"), Bar("R4")]
+    long_note = Note.parse("C4.")
+    following = Note.parse("D8")
+
+    result = fill_bars(templates, iter((long_note, following)))
+
+    assert result[0] == Bar([
+        long_note.with_duration(Fraction(1, 4)).with_ties(tie_out=True),
+    ])
+    assert result[1] == Bar([
+        long_note.with_duration(Fraction(1, 8)).with_ties(tie_in=True),
+        following,
+    ])
+
+
+def test_fill_bars_splits_rests_without_ties_and_preserves_metadata():
+    templates = [Bar("R4"), Bar("R4")]
+    rest = Note.rest(Fraction(1, 2)).with_velocity(0.2).with_ties(
+        tie_in=True,
+        tie_out=True,
+    )
+
+    result = fill_bars(templates, [rest])
+    segments = [bar[0] for bar in result]
+
+    assert all(segment.is_rest() for segment in segments)
+    assert all(segment.duration == Fraction(1, 4) for segment in segments)
+    assert all(segment.velocity == rest.velocity for segment in segments)
+    assert all(not segment.tie_in and not segment.tie_out for segment in segments)
+
+
+def test_fill_bars_combines_consecutive_rests_within_each_bar():
+    first = Note.rest(Fraction(1, 8)).with_velocity(0.2)
+    second = Note.rest(Fraction(1, 8)).with_velocity(0.8)
+    third = Note.rest(Fraction(1, 2))
+
+    result = fill_bars([Bar("R4"), Bar("R4")], [first, second, third])
+
+    assert len(result[0]) == 1
+    assert result[0][0].is_rest()
+    assert result[0][0].duration == Fraction(1, 4)
+    assert result[0][0].velocity == first.velocity
+    assert len(result[1]) == 1
+    assert result[1][0].is_rest()
+    assert result[1][0].duration == Fraction(1, 4)
+
+
+def test_fill_bars_preserves_empty_templates_without_consuming_notes():
+    source = iter((Note.parse("C4"),))
+
+    result = fill_bars([Bar(), Bar("R4")], source)
+
+    assert result[0] == Bar()
+    assert result[1] == Bar("C4")
+
+
+def test_fill_bars_reports_exhausted_or_invalid_sources():
+    with pytest.raises(ValueError, match="ended while filling bar 1"):
+        fill_bars([Bar("R4"), Bar("R4")], [Note.parse("C4")])
+
+    with pytest.raises(TypeError, match="Generated event 0"):
+        fill_bars([Bar("R4")], [object()])
+    with pytest.raises(TypeError, match="Bar template 0"):
+        fill_bars([object()], [Note.parse("C4")])

@@ -5,6 +5,16 @@ their written spelling, tonal transformations work in scale-degree space, and
 bars, voices, and scores carry their own tonal context. The core model does not
 need LilyPond, FluidSynth, or a running notebook.
 
+The complete generated API reference is published at
+[orbitfold.github.io/paeonia](https://orbitfold.github.io/paeonia/).
+
+Build the same documentation locally with:
+
+```bash
+python -m pip install --editable ".[docs]"
+python -m sphinx -W --keep-going -b html docs docs/_build/html
+```
+
 Install the package from the repository and import the public model directly:
 
 ```bash
