@@ -1,4 +1,4 @@
-"""General-purpose composition iterators."""
+"""General-purpose composition tools."""
 
 from collections.abc import Iterable, Iterator
 from fractions import Fraction
@@ -163,6 +163,200 @@ def turn_notes_off(
             previous = previous.with_duration(
                 previous.duration + note.duration
             )
+
+
+def pulses_to_durations(
+        bar: Bar,
+        pulses: str,
+        legato: bool = True,
+        unit: Fraction = Fraction(1, 16),
+        offset: int = 0,
+        emit_ties: bool = False,
+) -> Bar:
+    """Apply an onset pattern to a bar's events.
+
+    Each ``"x"`` starts the next source event, cycling through ``bar`` when
+    necessary. Each ``"."`` is either a unit rest or, in legato mode, a
+    continuation of the preceding onset. Dots before the first onset remain
+    rests.
+
+    In the default legato representation, an onset and its continuation frames
+    become one longer event. With ``emit_ties=True``, sounding continuations
+    are instead emitted as separate unit events joined by ties. Rest spans are
+    never tied. Pitch spelling, velocity, outer tie flags, and bar tonality are
+    retained, and the source bar is not modified.
+
+    Parameters
+    ----------
+    bar : Bar
+        Non-empty source of events when ``pulses`` contains an onset.
+    pulses : str
+        Pattern whose onsets are ``"x"`` and whose rests or continuations are
+        ``"."``.
+    legato : bool, default=True
+        Merge onsets with their following dot frames. When false, every frame
+        produces one unit-length event.
+    unit : Fraction, default=Fraction(1, 16)
+        Positive duration of one pattern frame.
+    offset : int, default=0
+        Number of frames by which to rotate the pattern to the left.
+    emit_ties : bool, default=False
+        In legato mode, emit separate tied sounding frames instead of one
+        merged event. This has no effect when ``legato`` is false.
+
+    Returns
+    -------
+    Bar
+        A new rhythmically transformed bar with the source tonality.
+
+    Raises
+    ------
+    TypeError
+        If ``bar`` is not a bar, ``pulses`` is not a string, or ``offset`` is
+        not an integer.
+    ValueError
+        If the pattern contains unsupported characters, ``unit`` is not
+        positive, or an onset is requested from an empty bar.
+    """
+    if not isinstance(bar, Bar):
+        raise TypeError("bar must be a Bar")
+    if not isinstance(pulses, str):
+        raise TypeError("pulses must be a string")
+    if not isinstance(offset, int):
+        raise TypeError("offset must be an integer")
+
+    unit = Fraction(unit)
+    if unit <= 0:
+        raise ValueError("unit must be positive")
+
+    invalid_characters = set(pulses) - {"x", "."}
+    if invalid_characters:
+        invalid = "".join(sorted(invalid_characters))
+        raise ValueError(f"Invalid pulse character(s): {invalid!r}")
+    if not pulses:
+        return Bar(tonality=bar.tonality)
+    if "x" in pulses and not bar:
+        raise ValueError("Cannot emit pulse onsets from an empty bar")
+
+    offset %= len(pulses)
+    pulses = pulses[offset:] + pulses[:offset]
+    source_notes = cycle(bar.notes)
+    generated_notes: list[Note] = []
+
+    def resize(source: Note, duration: Fraction) -> Note:
+        return source.with_pitches(source.pitches).with_duration(duration)
+
+    if not legato:
+        for pulse in pulses:
+            if pulse == "x":
+                generated_notes.append(resize(next(source_notes), unit))
+            else:
+                generated_notes.append(Note.rest(unit))
+        return Bar(generated_notes, tonality=bar.tonality)
+
+    index = 0
+    while index < len(pulses):
+        if pulses[index] == ".":
+            end = index + 1
+            while end < len(pulses) and pulses[end] == ".":
+                end += 1
+            generated_notes.append(Note.rest((end - index) * unit))
+            index = end
+            continue
+
+        source = next(source_notes)
+        end = index + 1
+        while end < len(pulses) and pulses[end] == ".":
+            end += 1
+        frame_count = end - index
+
+        if not emit_ties or source.is_rest():
+            generated_notes.append(resize(source, frame_count * unit))
+        else:
+            for frame in range(frame_count):
+                first = frame == 0
+                last = frame == frame_count - 1
+                generated_notes.append(
+                    resize(source, unit).with_ties(
+                        tie_in=source.tie_in if first else True,
+                        tie_out=source.tie_out if last else True,
+                    )
+                )
+        index = end
+
+    return Bar(generated_notes, tonality=bar.tonality)
+
+
+def euclidean_rhythm(
+        bar: Bar,
+        n: int,
+        k: int,
+        legato: bool = True,
+        unit: Fraction = Fraction(1, 16),
+        offset: int = 0,
+        emit_ties: bool = False,
+) -> Bar:
+    """Distribute ``k`` source onsets evenly over ``n`` frames.
+
+    Source events are selected cyclically at generated onsets. Rhythm
+    realization is delegated to :func:`pulses_to_durations`, so legato
+    durations, explicit ties, metadata, rotation, and tonality behave
+    identically in both functions.
+
+    Parameters
+    ----------
+    bar : Bar
+        Source events cycled at generated onsets.
+    n : int
+        Positive number of frames in the generated rhythm.
+    k : int
+        Number of onsets between zero and ``n``, inclusive.
+    legato : bool, default=True
+        Merge each onset with its following continuation frames.
+    unit : Fraction, default=Fraction(1, 16)
+        Duration of one frame.
+    offset : int, default=0
+        Number of frames by which to rotate the pattern to the left.
+    emit_ties : bool, default=False
+        In legato mode, emit tied unit events instead of merged durations.
+
+    Returns
+    -------
+    Bar
+        A new bar containing the generated rhythm and source tonality.
+
+    Raises
+    ------
+    TypeError
+        If ``bar`` is not a bar or ``n`` and ``k`` are not integers.
+    ValueError
+        If ``n`` is not positive or ``k`` lies outside ``0 <= k <= n``.
+    """
+    if not isinstance(bar, Bar):
+        raise TypeError("bar must be a Bar")
+    if not isinstance(n, int) or not isinstance(k, int):
+        raise TypeError("n and k must be integers")
+    if n <= 0:
+        raise ValueError("n must be positive")
+    if not 0 <= k <= n:
+        raise ValueError("k must satisfy 0 <= k <= n")
+
+    if k == n:
+        pulses = "x" * n
+    else:
+        remainders = [(frame * k) % n for frame in range(-1, n)]
+        pulses = "".join(
+            "x" if left > right else "."
+            for left, right in zip(remainders[:-1], remainders[1:])
+        )
+    return pulses_to_durations(
+        bar,
+        pulses,
+        legato=legato,
+        unit=unit,
+        offset=offset,
+        emit_ties=emit_ties,
+    )
 
 
 def fill_bars(

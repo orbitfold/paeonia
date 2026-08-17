@@ -4,7 +4,23 @@ from fractions import Fraction
 import pytest
 
 from paeonia import Bar, Note, Tonality, Voice
-from paeonia.tools import fill_bars, note_repeat, turn_notes_off
+from paeonia.tools import (
+    euclidean_rhythm,
+    fill_bars,
+    note_repeat,
+    pulses_to_durations,
+    turn_notes_off,
+)
+
+
+def test_rhythm_transformations_are_tools_not_bar_methods():
+    assert not hasattr(Bar, "pulses_to_durations")
+    assert not hasattr(Bar, "euclidean_rhythm")
+
+    with pytest.raises(TypeError, match="bar must be a Bar"):
+        pulses_to_durations(object(), "x")
+    with pytest.raises(TypeError, match="bar must be a Bar"):
+        euclidean_rhythm(object(), 4, 2)
 
 
 def test_note_repeat_cycles_notes_and_counts_independently():

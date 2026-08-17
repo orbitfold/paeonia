@@ -3,6 +3,7 @@ from fractions import Fraction
 
 from paeonia import Bar, Note, Tonality
 from paeonia.pitch import Pitch
+from paeonia.tools import euclidean_rhythm, pulses_to_durations
 import pytest
 
 
@@ -787,12 +788,12 @@ def test_merge_pitches_rejects_conflicting_tonalities():
 def test_pulse_to_durations():
     bar = Bar("C E R")
     pulses = "x.xx...x."
-    new_bar_1 = bar.pulses_to_durations(pulses, legato=False)
-    new_bar_2 = bar.pulses_to_durations(pulses, legato=True)
+    new_bar_1 = pulses_to_durations(bar, pulses, legato=False)
+    new_bar_2 = pulses_to_durations(bar, pulses, legato=True)
     assert(new_bar_1 == Bar("C16 R E R R R R C R"))
     assert(new_bar_2 == Bar("C8 E16 R4 C8"))
     pulses = "...x"
-    new_bar_3 = bar.pulses_to_durations(pulses, legato=True)
+    new_bar_3 = pulses_to_durations(bar, pulses, legato=True)
     assert(new_bar_3 == Bar("R8. C16"))
 
 
@@ -808,7 +809,8 @@ def test_pulse_to_durations_preserves_source_metadata_and_tonality():
     bar = Bar([source], tonality=tonality)
     original = copy(bar)
 
-    result = bar.pulses_to_durations(
+    result = pulses_to_durations(
+        bar,
         "x..",
         unit=Fraction(1, 16),
     )
@@ -834,7 +836,8 @@ def test_pulse_to_durations_emits_explicit_tied_frames():
         velocity=0.4,
     )
 
-    result = Bar([source], tonality=tonality).pulses_to_durations(
+    result = pulses_to_durations(
+        Bar([source], tonality=tonality),
         "..x..",
         unit=Fraction(1, 16),
         emit_ties=True,
@@ -859,7 +862,8 @@ def test_pulse_to_durations_non_legato_uses_unit_events():
         tie_out=True,
     )
 
-    result = Bar([source]).pulses_to_durations(
+    result = pulses_to_durations(
+        Bar([source]),
         "x.",
         legato=False,
         unit=Fraction(1, 8),
@@ -873,7 +877,8 @@ def test_pulse_to_durations_non_legato_uses_unit_events():
 def test_pulse_to_durations_does_not_split_source_rests_for_ties():
     source = Note.rest().with_velocity(0.2)
 
-    result = Bar([source]).pulses_to_durations(
+    result = pulses_to_durations(
+        Bar([source]),
         "x..",
         unit=Fraction(1, 16),
         emit_ties=True,
@@ -886,26 +891,26 @@ def test_pulse_to_durations_validates_input_and_handles_empty_pattern():
     tonality = Tonality("C")
     bar = Bar("C", tonality=tonality)
 
-    empty = bar.pulses_to_durations("")
+    empty = pulses_to_durations(bar, "")
     assert len(empty) == 0
     assert empty.tonality is tonality
 
     with pytest.raises(ValueError, match="Invalid pulse"):
-        bar.pulses_to_durations("x-o")
+        pulses_to_durations(bar, "x-o")
     with pytest.raises(ValueError, match="unit must be positive"):
-        bar.pulses_to_durations("x", unit=0)
+        pulses_to_durations(bar, "x", unit=0)
     with pytest.raises(ValueError, match="empty bar"):
-        Bar().pulses_to_durations("x")
+        pulses_to_durations(Bar(), "x")
 
 
 def test_euclidean_rhythm():
     bar = Bar("C E D")
-    er_bar = bar.euclidean_rhythm(13, 5, offset=3)
+    er_bar = euclidean_rhythm(bar, 13, 5, offset=3)
     assert(er_bar == Bar("C8. E8 D8. C8 E8."))
     bar = Bar("C")
-    er_bar = bar.euclidean_rhythm(8, 3, offset=3)
+    er_bar = euclidean_rhythm(bar, 8, 3, offset=3)
     assert(er_bar == Bar("C8. C8 C8."))
-    er_bar = bar.euclidean_rhythm(8, 4)
+    er_bar = euclidean_rhythm(bar, 8, 4)
     assert(er_bar == Bar("C8 C C C"))
 
 
@@ -918,7 +923,8 @@ def test_euclidean_rhythm_can_emit_tied_frames_and_preserves_tonality():
     bar = Bar([source], tonality=tonality)
     original = copy(bar)
 
-    result = bar.euclidean_rhythm(
+    result = euclidean_rhythm(
+        bar,
         8,
         4,
         emit_ties=True,
@@ -949,15 +955,15 @@ def test_euclidean_rhythm_validates_dimensions():
     bar = Bar("C")
 
     with pytest.raises(ValueError, match="n must be positive"):
-        bar.euclidean_rhythm(0, 0)
+        euclidean_rhythm(bar, 0, 0)
     with pytest.raises(ValueError, match="0 <= k <= n"):
-        bar.euclidean_rhythm(4, 5)
+        euclidean_rhythm(bar, 4, 5)
     with pytest.raises(TypeError, match="integers"):
-        bar.euclidean_rhythm(8.0, 3)
+        euclidean_rhythm(bar, 8.0, 3)
 
 
 def test_euclidean_rhythm_handles_all_and_no_onsets():
     bar = Bar("C D")
 
-    assert bar.euclidean_rhythm(4, 4) == Bar("C16 D C D")
-    assert bar.euclidean_rhythm(4, 0) == Bar("R4")
+    assert euclidean_rhythm(bar, 4, 4) == Bar("C16 D C D")
+    assert euclidean_rhythm(bar, 4, 0) == Bar("R4")
