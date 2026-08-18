@@ -42,6 +42,61 @@ def test_velocity_duration_ties_and_chord_pitches_survive_with_pitches():
     assert changed.tie_out is True
 
 
+def test_stretch_multiplies_duration_and_preserves_note_metadata():
+    note = Note.parse("<C Eb G>8").with_velocity(0.4).with_ties(
+        tie_in=True,
+        tie_out=True,
+    )
+
+    stretched = note.stretch(Fraction(3, 2))
+
+    assert stretched.duration == Fraction(3, 16)
+    assert stretched.pitches == note.pitches
+    assert stretched.velocity == note.velocity
+    assert stretched.tie_in is True
+    assert stretched.tie_out is True
+    assert stretched is not note
+    assert note.duration == Fraction(1, 8)
+
+
+def test_stretch_accepts_integer_and_decimal_float_factors():
+    note = Note.parse("C4")
+
+    assert note.stretch(2).duration == Fraction(1, 2)
+    assert note.stretch(0.1).duration == Fraction(1, 40)
+
+
+def test_stretch_works_for_rests():
+    rest = Note.rest(Fraction(1, 8)).with_velocity(0.2)
+
+    stretched = rest.stretch(3)
+
+    assert stretched.is_rest()
+    assert stretched.duration == Fraction(3, 8)
+    assert stretched.velocity == rest.velocity
+
+
+@pytest.mark.parametrize("factor", [0, -1, Fraction(-1, 2)])
+def test_stretch_rejects_non_positive_factors(factor):
+    with pytest.raises(ValueError, match="factor must be positive"):
+        Note.parse("C").stretch(factor)
+
+
+@pytest.mark.parametrize("factor", [float("inf"), float("-inf"), float("nan")])
+def test_stretch_rejects_non_finite_factors(factor):
+    with pytest.raises(ValueError, match="factor must be finite"):
+        Note.parse("C").stretch(factor)
+
+
+@pytest.mark.parametrize("factor", [True, "2", object()])
+def test_stretch_rejects_non_numeric_factors(factor):
+    with pytest.raises(
+            TypeError,
+            match="factor must be an integer, float, or Fraction",
+    ):
+        Note.parse("C").stretch(factor)
+
+
 def test_rest_remains_rest_through_map_pitches_and_chromatic_transposition():
     rest = Note.rest(duration=Fraction(1, 8))
 

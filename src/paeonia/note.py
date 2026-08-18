@@ -85,6 +85,48 @@ class Note:
     def with_duration(self, duration: Fraction) -> "Note":
         return replace(self, duration=Fraction(duration))
 
+    def stretch(self, factor: int | float | Fraction) -> "Note":
+        """Return a copy whose duration is multiplied by ``factor``.
+
+        The factor is converted to an exact :class:`fractions.Fraction` before
+        multiplication. Decimal float literals therefore retain their written
+        value: for example, ``0.5`` is treated as ``Fraction(1, 2)``. Pitches,
+        velocity, and tie metadata are unchanged.
+
+        Parameters
+        ----------
+        factor : int | float | Fraction
+            Finite, strictly positive duration multiplier.
+
+        Returns
+        -------
+        Note
+            A new note with the stretched duration.
+
+        Raises
+        ------
+        TypeError
+            If ``factor`` is not an integer, float, or fraction.
+        ValueError
+            If ``factor`` is non-finite or not strictly positive.
+        """
+        if isinstance(factor, bool) or not isinstance(
+                factor,
+                (int, float, Fraction),
+        ):
+            raise TypeError("factor must be an integer, float, or Fraction")
+
+        try:
+            normalized_factor = Fraction(
+                str(factor) if isinstance(factor, float) else factor
+            )
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("factor must be finite") from exc
+        if normalized_factor <= 0:
+            raise ValueError("factor must be positive")
+
+        return self.with_duration(self.duration * normalized_factor)
+
     def with_velocity(self, velocity: float) -> "Note":
         return replace(self, velocity=velocity)
 
