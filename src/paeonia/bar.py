@@ -203,6 +203,41 @@ class Bar:
             lambda note: note.stretch(factor, quantize=quantize)
         )
 
+    def rotate(self, steps: int) -> "Bar":
+        """Rotate the event sequence and return a new bar.
+
+        Positive values rotate to the right and negative values rotate to the
+        left. Values larger than the number of events wrap around. Tonality
+        and the original :class:`Note` objects, including all their metadata,
+        are preserved; the source bar is unchanged.
+
+        Parameters
+        ----------
+        steps : int
+            Number of event positions to rotate. Positive values rotate right.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the rotated event sequence.
+
+        Raises
+        ------
+        TypeError
+            If ``steps`` is not an integer.
+        """
+        if not isinstance(steps, int):
+            raise TypeError("steps must be an integer")
+        if not self:
+            return Bar(tonality=self.tonality)
+
+        steps %= len(self)
+        if steps == 0:
+            notes = list(self.notes)
+        else:
+            notes = self.notes[-steps:] + self.notes[:-steps]
+        return Bar(notes, tonality=self.tonality)
+
     def map_pitches(self, function: Callable[[Pitch], Pitch]) -> "Bar":
         """Apply a function to every pitch in the bar.
 

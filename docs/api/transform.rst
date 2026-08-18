@@ -1,4 +1,0 @@
-Transformations
-===============
-
-.. automodule:: paeonia.transform
