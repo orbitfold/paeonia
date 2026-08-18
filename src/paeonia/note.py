@@ -10,6 +10,13 @@ from copy import copy
 import random
 
 
+_NOTATABLE_DURATIONS = tuple(sorted({
+    Fraction(1, 2**power) * multiplier
+    for power in range(8)
+    for multiplier in (Fraction(1), Fraction(3, 2), Fraction(7, 4))
+}))
+
+
 @dataclass(frozen=True, slots=True)
 class Note:
     pitches: tuple[Pitch, ...] = ()
@@ -85,18 +92,32 @@ class Note:
     def with_duration(self, duration: Fraction) -> "Note":
         return replace(self, duration=Fraction(duration))
 
-    def stretch(self, factor: int | float | Fraction) -> "Note":
+    def stretch(
+            self,
+            factor: int | float | Fraction,
+            *,
+            quantize: bool = True,
+    ) -> "Note":
         """Return a copy whose duration is multiplied by ``factor``.
 
         The factor is converted to an exact :class:`fractions.Fraction` before
         multiplication. Decimal float literals therefore retain their written
         value: for example, ``0.5`` is treated as ``Fraction(1, 2)``. Pitches,
-        velocity, and tie metadata are unchanged.
+        velocity, and tie metadata are unchanged. By default, the result is
+        quantized to the nearest duration that the current LilyPond renderer
+        can express as one token: a power-of-two value from a whole note
+        through a 128th note, with zero, one, or two dots. Equidistant values
+        choose the shorter duration, and values outside the supported range
+        clamp to its nearest endpoint.
 
         Parameters
         ----------
         factor : int | float | Fraction
             Finite, strictly positive duration multiplier.
+        quantize : bool, default=True
+            Snap the result to the nearest directly notatable duration. When
+            false, retain the exact multiplied duration even if notation
+            rendering cannot express it as one token.
 
         Returns
         -------
@@ -106,7 +127,8 @@ class Note:
         Raises
         ------
         TypeError
-            If ``factor`` is not an integer, float, or fraction.
+            If ``factor`` is not an integer, float, or fraction, or if
+            ``quantize`` is not Boolean.
         ValueError
             If ``factor`` is non-finite or not strictly positive.
         """
@@ -115,6 +137,8 @@ class Note:
                 (int, float, Fraction),
         ):
             raise TypeError("factor must be an integer, float, or Fraction")
+        if not isinstance(quantize, bool):
+            raise TypeError("quantize must be a boolean")
 
         try:
             normalized_factor = Fraction(
@@ -125,7 +149,16 @@ class Note:
         if normalized_factor <= 0:
             raise ValueError("factor must be positive")
 
-        return self.with_duration(self.duration * normalized_factor)
+        duration = self.duration * normalized_factor
+        if quantize:
+            duration = min(
+                _NOTATABLE_DURATIONS,
+                key=lambda candidate: (
+                    abs(candidate - duration),
+                    candidate,
+                ),
+            )
+        return self.with_duration(duration)
 
     def with_velocity(self, velocity: float) -> "Note":
         return replace(self, velocity=velocity)

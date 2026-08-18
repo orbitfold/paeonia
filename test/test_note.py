@@ -1,5 +1,6 @@
 from copy import copy
 from fractions import Fraction
+from math import pi
 
 import pytest
 
@@ -63,7 +64,30 @@ def test_stretch_accepts_integer_and_decimal_float_factors():
     note = Note.parse("C4")
 
     assert note.stretch(2).duration == Fraction(1, 2)
-    assert note.stretch(0.1).duration == Fraction(1, 40)
+    assert note.stretch(0.1, quantize=False).duration == Fraction(1, 40)
+
+
+def test_stretch_quantizes_to_nearest_notatable_duration_by_default():
+    note = Note.parse("C4")
+
+    stretched = note.stretch(pi)
+
+    assert stretched.duration == Fraction(3, 4)
+    assert stretched.to_lilypond() == "c'2."
+
+
+def test_stretch_can_retain_an_exact_unsupported_duration():
+    note = Note.parse("C1")
+
+    stretched = note.stretch(pi, quantize=False)
+
+    assert stretched.duration == Fraction("3.141592653589793")
+    with pytest.raises(ValueError, match="Unsupported LilyPond duration"):
+        stretched.to_lilypond()
+
+
+def test_stretch_quantization_clamps_above_largest_notatable_duration():
+    assert Note.parse("C1").stretch(pi).duration == Fraction(7, 4)
 
 
 def test_stretch_works_for_rests():
@@ -95,6 +119,11 @@ def test_stretch_rejects_non_numeric_factors(factor):
             match="factor must be an integer, float, or Fraction",
     ):
         Note.parse("C").stretch(factor)
+
+
+def test_stretch_rejects_non_boolean_quantize_option():
+    with pytest.raises(TypeError, match="quantize must be a boolean"):
+        Note.parse("C").stretch(2, quantize=1)
 
 
 def test_rest_remains_rest_through_map_pitches_and_chromatic_transposition():
