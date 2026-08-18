@@ -2,6 +2,7 @@ from copy import copy
 from collections.abc import Callable, Iterable, Sequence
 from itertools import cycle
 from fractions import Fraction
+from typing import TYPE_CHECKING
 import random
 import warnings
 
@@ -9,6 +10,9 @@ from .note import Note
 from .parser import parse
 from .pitch import Pitch
 from .tonality import ScalePosition, Tonality
+
+if TYPE_CHECKING:
+    from .voice import Voice
 
 class Bar:
     def __init__(
@@ -302,6 +306,77 @@ class Bar:
             Sum of the durations of the notes in the bar
         """
         return sum([note.duration for note in self.notes])
+
+    def split(
+            self,
+            time_signature: tuple[int, int] = (4, 4),
+    ) -> "Voice":
+        """Split the event sequence into measures of a given time signature.
+
+        Sounding notes and chords that cross a measure boundary are divided
+        into tied segments. Rests are split without ties, and consecutive rests
+        in a resulting measure are combined. When the source does not fill its
+        final measure, an untied rest pads the remaining duration. Every
+        resulting bar has the source tonality, which is also installed as the
+        returned voice's default tonal context. The source bar and its events
+        are not modified. An empty source produces an empty voice.
+
+        Parameters
+        ----------
+        time_signature : tuple[int, int], default=(4, 4)
+            Positive numerator and denominator. Their ratio gives each
+            measure's duration in whole-note units.
+
+        Returns
+        -------
+        Voice
+            A new voice containing complete, equally sized measures.
+
+        Raises
+        ------
+        TypeError
+            If ``time_signature`` is not a pair of integers.
+        ValueError
+            If either time-signature value is not positive.
+        """
+        from .tools import fill_bars
+        from .voice import Voice
+
+        if not isinstance(time_signature, tuple) or len(time_signature) != 2:
+            raise TypeError("time_signature must be a two-item tuple")
+        if any(
+                isinstance(value, bool) or not isinstance(value, int)
+                for value in time_signature
+        ):
+            raise TypeError("time_signature values must be integers")
+        numerator, denominator = time_signature
+        if numerator <= 0 or denominator <= 0:
+            raise ValueError("time-signature values must be positive")
+
+        measure_span = Fraction(numerator, denominator)
+        total_span = Fraction(self.span())
+        full_measures, remainder = divmod(total_span, measure_span)
+        measure_count = full_measures + bool(remainder)
+        if measure_count == 0:
+            return Voice(default_tonality=self.tonality)
+
+        source_notes = list(self.notes)
+        padding = measure_count * measure_span - total_span
+        if padding:
+            source_notes.append(Note.rest(padding))
+
+        templates = [
+            Bar(
+                [Note.rest(measure_span)],
+                tonality=self.tonality,
+            )
+            for _ in range(measure_count)
+        ]
+        filled = fill_bars(templates, source_notes)
+        return Voice(
+            filled.bars,
+            default_tonality=self.tonality,
+        )
 
     def add_note(self, note):
         """Append a new note to the bar.
@@ -889,18 +964,6 @@ class Bar:
                 replacement = replacement.with_velocity(donor.velocity)
             result.append(replacement)
         return Bar(result, tonality=self.tonality)
-
-    def tonal_transpose(self, tonality, degrees):
-        """Deprecated wrapper around :meth:`transpose_degrees`."""
-        warnings.warn(
-            (
-                "Bar.tonal_transpose() is deprecated; "
-                "use transpose_degrees() instead."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.transpose_degrees(degrees, tonality=tonality)
 
     def tonal_mode_change(self, tonality, mode):
         """Deprecated wrapper around :meth:`apply_tonality`."""

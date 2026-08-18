@@ -2,7 +2,7 @@ from copy import copy
 from fractions import Fraction
 from itertools import cycle
 
-from paeonia import Bar, Note, Tonality
+from paeonia import Bar, Note, Tonality, Voice
 from paeonia.pitch import Pitch
 from paeonia.tools import euclidean_rhythm, pulses_to_durations
 import pytest
@@ -323,6 +323,104 @@ def test_rotate_empty_bar_returns_new_empty_bar_with_tonality():
 def test_rotate_rejects_non_integer_steps():
     with pytest.raises(TypeError, match="steps must be an integer"):
         Bar("C").rotate(1.5)
+
+
+def test_split_returns_voice_of_complete_measures_and_pads_final_bar():
+    tonality = Tonality("C", "minor")
+    bar = Bar("C1 D4", tonality=tonality)
+    original = copy(bar)
+
+    voice = bar.split((4, 4))
+
+    assert isinstance(voice, Voice)
+    assert len(voice) == 2
+    assert voice[0] == Bar("C1", tonality=tonality)
+    assert voice[1] == Bar("D4 R2.", tonality=tonality)
+    assert voice.bar_spans() == (Fraction(1), Fraction(1))
+    assert voice.default_tonality is tonality
+    assert all(measure.tonality is tonality for measure in voice)
+    assert bar == original
+
+
+def test_split_ties_sounding_note_across_measure_boundaries():
+    chord = Note.parse("<C E G>1").stretch(
+        Fraction(3, 2),
+        quantize=False,
+    ).with_velocity(0.4).with_ties(tie_in=True)
+    bar = Bar([chord])
+
+    voice = bar.split()
+
+    first = voice[0][0]
+    second = voice[1][0]
+    assert first.pitches == second.pitches == chord.pitches
+    assert first.duration == Fraction(1)
+    assert second.duration == Fraction(1, 2)
+    assert first.velocity == second.velocity == 0.4
+    assert (first.tie_in, first.tie_out) == (True, True)
+    assert (second.tie_in, second.tie_out) == (True, False)
+    assert voice[1][1].is_rest()
+    assert voice[1][1].duration == Fraction(1, 2)
+
+
+def test_split_divides_rests_without_ties_and_combines_final_padding():
+    rest = Note.rest(Fraction(3, 2)).with_velocity(0.2).with_ties(
+        tie_in=True,
+        tie_out=True,
+    )
+
+    voice = Bar([rest]).split()
+
+    assert len(voice) == 2
+    assert all(len(measure) == 1 for measure in voice)
+    assert all(measure[0].is_rest() for measure in voice)
+    assert all(measure[0].duration == Fraction(1) for measure in voice)
+    assert all(measure[0].velocity == 0.2 for measure in voice)
+    assert all(
+        not measure[0].tie_in and not measure[0].tie_out
+        for measure in voice
+    )
+
+
+def test_split_supports_non_four_four_measure_spans():
+    voice = Bar("C2 D4 E4").split((3, 4))
+
+    assert len(voice) == 2
+    assert voice.bar_spans() == (Fraction(3, 4), Fraction(3, 4))
+    assert voice[0] == Bar("C2 D4")
+    assert voice[1] == Bar("E4 R2")
+
+
+def test_split_empty_bar_returns_empty_voice_with_tonality():
+    tonality = Tonality("Eb")
+    bar = Bar(tonality=tonality)
+
+    voice = bar.split()
+
+    assert isinstance(voice, Voice)
+    assert len(voice) == 0
+    assert voice.default_tonality is tonality
+
+
+@pytest.mark.parametrize(
+    "time_signature",
+    [
+        (4,),
+        (4, 4, 4),
+        [4, 4],
+        (4, 4.0),
+        (True, 4),
+    ],
+)
+def test_split_rejects_malformed_time_signatures(time_signature):
+    with pytest.raises(TypeError, match="time_signature"):
+        Bar("C").split(time_signature)
+
+
+@pytest.mark.parametrize("time_signature", [(0, 4), (4, 0), (-3, 4)])
+def test_split_rejects_non_positive_time_signature_values(time_signature):
+    with pytest.raises(ValueError, match="must be positive"):
+        Bar("C").split(time_signature)
 
 
 def test_slices_and_index_lists_preserve_tonality():
@@ -811,25 +909,6 @@ def test_tonal_inversion_nearest_policy_quantizes_anchor():
     )
 
     assert inverted == Bar("F", tonality=tonality)
-
-def test_deprecated_tonal_transpose_delegates_and_warns(monkeypatch):
-    bar = Bar("C D E")
-    tonality = Tonality("C")
-    sentinel = Bar("D E F", tonality=tonality)
-    calls = []
-
-    def transpose(self, degrees, tonality=None, **options):
-        calls.append((self, degrees, tonality, options))
-        return sentinel
-
-    monkeypatch.setattr(Bar, "transpose_degrees", transpose)
-
-    with pytest.warns(DeprecationWarning, match="tonal_transpose"):
-        result = bar.tonal_transpose(tonality, 1)
-
-    assert result is sentinel
-    assert calls == [(bar, 1, tonality, {})]
-
 
 def test_deprecated_tonal_mode_change_delegates_and_warns(monkeypatch):
     bar = Bar("<C E G>")
