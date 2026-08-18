@@ -207,6 +207,65 @@ def test_division_changes_only_durations_and_preserves_tonality():
     assert bar == original
 
 
+def test_stretch_changes_every_duration_and_preserves_bar_and_note_metadata():
+    tonality = Tonality("Eb", "minor")
+    chord = Note.parse("<Eb G Bb>8").with_velocity(0.4).with_ties(
+        tie_in=True,
+        tie_out=True,
+    )
+    rest = Note.rest(Fraction(1, 4)).with_velocity(0.2)
+    bar = Bar([chord, rest], tonality=tonality)
+    original = copy(bar)
+
+    stretched = bar.stretch(Fraction(3, 2))
+
+    assert [note.duration for note in stretched] == [
+        Fraction(3, 16),
+        Fraction(3, 8),
+    ]
+    assert stretched.tonality is tonality
+    assert [note.pitches for note in stretched] == [
+        chord.pitches,
+        rest.pitches,
+    ]
+    assert [note.velocity for note in stretched] == [0.4, 0.2]
+    assert stretched[0].tie_in is True
+    assert stretched[0].tie_out is True
+    assert stretched is not bar
+    assert all(
+        actual is not source
+        for actual, source in zip(stretched, bar)
+    )
+    assert bar == original
+
+
+def test_stretch_forwards_quantization_option_to_every_note():
+    bar = Bar("C4 R")
+
+    quantized = bar.stretch(Fraction(5, 4))
+    exact = bar.stretch(Fraction(5, 4), quantize=False)
+
+    assert [note.duration for note in quantized] == [
+        Fraction(1, 4),
+        Fraction(1, 4),
+    ]
+    assert [note.duration for note in exact] == [
+        Fraction(5, 16),
+        Fraction(5, 16),
+    ]
+
+
+def test_stretch_empty_bar_returns_new_bar_with_same_tonality():
+    tonality = Tonality("C")
+    bar = Bar(tonality=tonality)
+
+    stretched = bar.stretch(2)
+
+    assert stretched == bar
+    assert stretched is not bar
+    assert stretched.tonality is tonality
+
+
 def test_slices_and_index_lists_preserve_tonality():
     tonality = Tonality("C")
     bar = Bar("C D E F", tonality=tonality)

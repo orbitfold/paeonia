@@ -166,6 +166,43 @@ class Bar:
         return Bar(notes=[function(note) for note in self.notes],
                    tonality=self.tonality)
 
+    def stretch(
+            self,
+            factor: int | float | Fraction,
+            *,
+            quantize: bool = True,
+    ) -> "Bar":
+        """Stretch every event duration and return a new bar.
+
+        Each event is transformed through :meth:`Note.stretch`, so rests,
+        chords, pitches, velocity, and tie metadata retain their existing
+        behavior. The source bar is unchanged and its tonality is preserved.
+
+        Parameters
+        ----------
+        factor : int | float | Fraction
+            Finite, strictly positive duration multiplier.
+        quantize : bool, default=True
+            Snap each result to the nearest duration directly supported by
+            the LilyPond renderer. Set this to false to retain exact multiplied
+            durations.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the stretched events.
+
+        Raises
+        ------
+        TypeError
+            If ``factor`` or ``quantize`` has an unsupported type.
+        ValueError
+            If ``factor`` is non-finite or not strictly positive.
+        """
+        return self.map_notes(
+            lambda note: note.stretch(factor, quantize=quantize)
+        )
+
     def map_pitches(self, function: Callable[[Pitch], Pitch]) -> "Bar":
         """Apply a function to every pitch in the bar.
 
