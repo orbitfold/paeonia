@@ -72,6 +72,53 @@ def test_dataclass_equality_distinguishes_enharmonic_spellings_but_sounds_like_d
     assert sharp.sounds_like(flat)
 
 
+def test_pitch_order_key_sorts_sounding_notes_and_places_rests_last():
+    c = Note.parse("C")
+    e = Note.parse("E")
+    chord = Note.parse("<C E G>")
+    rest = Note.rest()
+
+    ordered = sorted([rest, e, chord, c], key=Note.pitch_order_key)
+
+    assert ordered == [c, chord, e, rest]
+    assert min([e, c], key=Note.pitch_order_key) is c
+
+
+def test_pitch_order_key_sorts_chord_pitches_before_comparing_them():
+    note = Note(
+        pitches=[
+            Pitch.parse("G4"),
+            Pitch.parse("C4"),
+            Pitch.parse("E4"),
+        ]
+    )
+
+    assert note.pitch_order_key() == (0, (60, 64, 67))
+
+
+def test_pitch_order_key_compares_enharmonic_spellings_by_sound():
+    sharp = Note(pitches=[Pitch.parse("D#4")])
+    flat = Note(pitches=[Pitch.parse("Eb4")])
+
+    assert sharp.pitch_order_key() == flat.pitch_order_key()
+    assert sharp != flat
+
+
+def test_pitch_order_key_ignores_non_pitch_metadata():
+    original = Note.parse("C4")
+    changed = original.with_duration(Fraction(1, 8)).with_velocity(
+        0.25
+    ).with_ties(tie_in=True, tie_out=True)
+
+    assert original.pitch_order_key() == changed.pitch_order_key()
+    assert original != changed
+
+
+def test_pitch_order_key_gives_all_rests_the_rest_sentinel():
+    assert Note.rest().pitch_order_key() == (1, ())
+    assert Note.rest(Fraction(1, 8)).pitch_order_key() == (1, ())
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [

@@ -127,24 +127,12 @@ class Note:
             and self.midi_pitches == other.midi_pitches
             and self.duration == other.duration
         )
-        
-    def __lt__(self, other):
-        if self.is_rest() or other.is_rest():
-            return False
-        for p1 in self.pitches:
-            for p2 in other.pitches:
-                if p1 >= p2:
-                    return False
-        return True
 
-    def __gt__(self, other):
-        if self.is_rest() or other.is_rest():
-            return False
-        for p1 in self.pitches:
-            for p2 in other.pitches:
-                if p1 <= p2:
-                    return False
-        return True
+    def pitch_order_key(self) -> tuple[int, tuple[int, ...]]:
+        """Return a pitch-based sorting key, placing rests last."""
+        if self.is_rest():
+            return (1, ())
+        return (0, tuple(sorted(self.midi_pitches)))
 
     def __mul__(self, other):
         from .bar import Bar
