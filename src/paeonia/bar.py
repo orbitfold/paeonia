@@ -127,6 +127,77 @@ class Bar:
     def __xor__(self, other):
         return self.take(other, durations=True)
 
+    def interleave(
+            self,
+            other: "Bar",
+            counts: Iterable[int],
+    ) -> "Bar":
+        """Interleave chunks from this bar and a cycling second bar.
+
+        The first count selects consecutive events from this bar and the
+        second count selects consecutive events from ``other``. Chunk pairs
+        repeat until this bar is exhausted. Its final chunk may contain fewer
+        events than requested; the corresponding chunk from ``other`` remains
+        full. The second bar cycles from its beginning whenever it runs out.
+
+        For example, counts ``[1, 2]`` take one event from this bar, then two
+        from ``other``, and repeat that pattern. Both source bars remain
+        unchanged, and emitted events retain all of their metadata. Tonality
+        is inherited from the defined bar when only one has a tonality, and
+        conflicting explicit tonalities are rejected.
+
+        Parameters
+        ----------
+        other : Bar
+            Non-empty bar whose events cycle as the second source.
+        counts : Iterable[int]
+            Exactly two positive integers: the chunk sizes for this bar and
+            ``other``, respectively.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the interleaved event sequence.
+
+        Raises
+        ------
+        TypeError
+            If ``other`` is not a bar or a count is not an integer.
+        ValueError
+            If there are not exactly two positive counts, the second bar is
+            empty while this bar has events, or explicit tonalities conflict.
+        """
+        if not isinstance(other, Bar):
+            raise TypeError("other must be a Bar")
+
+        chunk_sizes = tuple(counts)
+        if len(chunk_sizes) != 2:
+            raise ValueError("counts must contain exactly two values")
+        if any(
+                isinstance(count, bool) or not isinstance(count, int)
+                for count in chunk_sizes
+        ):
+            raise TypeError("interleave counts must be integers")
+        if any(count <= 0 for count in chunk_sizes):
+            raise ValueError("interleave counts must be positive")
+
+        tonality = self._common_tonality(
+            self.tonality,
+            other.tonality,
+        )
+        if not self:
+            return Bar(tonality=tonality)
+        if not other:
+            raise ValueError("other bar must contain at least one event")
+
+        first_count, second_count = chunk_sizes
+        other_events = cycle(other.notes)
+        result = []
+        for start in range(0, len(self), first_count):
+            result.extend(self.notes[start:start + first_count])
+            result.extend(islice(other_events, second_count))
+        return Bar(result, tonality=tonality)
+
     def __getitem__(self, i):
         """Select events, retaining tonality for slices and index lists."""
         if isinstance(i, slice):

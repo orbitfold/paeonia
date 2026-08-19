@@ -71,6 +71,94 @@ def test_bar_addition_rejects_conflicting_tonalities():
         _ = left + right
 
 
+def test_interleave_repeats_chunks_until_first_bar_is_exhausted():
+    first = Bar("C D E F G")
+    second = Bar("A B")
+
+    result = first.interleave(second, [1, 2])
+
+    assert result == Bar("C A B D A B E A B F A B G A B")
+
+
+def test_interleave_keeps_final_partial_first_chunk_and_cycles_second_bar():
+    first = Bar("C D E F G")
+    second = Bar("A B")
+
+    result = first.interleave(second, iter([2, 1]))
+
+    assert result == Bar("C D A E F B G A")
+
+
+def test_interleave_preserves_common_tonality_metadata_and_sources():
+    tonality = Tonality("Eb", "minor")
+    first_note = Note.parse("<Eb Gb Bb>8").with_velocity(0.4).with_ties(
+        tie_out=True,
+    )
+    second_note = Note.rest(Fraction(1, 16)).with_velocity(0.2)
+    first = Bar([first_note], tonality=tonality)
+    second = Bar([second_note])
+    original_first = copy(first)
+    original_second = copy(second)
+
+    result = first.interleave(second, [1, 2])
+
+    assert result.notes == [first_note, second_note, second_note]
+    assert all(
+        actual is expected
+        for actual, expected in zip(
+            result,
+            [first_note, second_note, second_note],
+        )
+    )
+    assert result.tonality is tonality
+    assert result is not first and result is not second
+    assert first == original_first
+    assert second == original_second
+
+
+def test_interleave_resolves_or_rejects_explicit_tonalities():
+    c_minor = Tonality("C", "minor")
+
+    assert Bar("C").interleave(
+        Bar("Eb", tonality=c_minor),
+        [1, 1],
+    ).tonality is c_minor
+    with pytest.raises(ValueError, match="conflicting tonalities"):
+        Bar("C", tonality=Tonality("C")).interleave(
+            Bar("D", tonality=Tonality("D")),
+            [1, 1],
+        )
+
+
+@pytest.mark.parametrize(
+    ("counts", "exception", "message"),
+    [
+        ([1], ValueError, "exactly two"),
+        ([1, 2, 3], ValueError, "exactly two"),
+        ([0, 1], ValueError, "must be positive"),
+        ([1, -1], ValueError, "must be positive"),
+        ([1, 1.5], TypeError, "must be integers"),
+        ([1, True], TypeError, "must be integers"),
+    ],
+)
+def test_interleave_validates_chunk_sizes(counts, exception, message):
+    with pytest.raises(exception, match=message):
+        Bar("C").interleave(Bar("D"), counts)
+
+
+def test_interleave_validates_second_source_and_handles_empty_first_bar():
+    tonality = Tonality("C")
+
+    with pytest.raises(TypeError, match="other must be a Bar"):
+        Bar("C").interleave([Note.parse("D")], [1, 1])
+    with pytest.raises(ValueError, match="other bar must contain"):
+        Bar("C").interleave(Bar(), [1, 1])
+
+    result = Bar(tonality=tonality).interleave(Bar("D"), [1, 1])
+    assert result == Bar(tonality=tonality)
+    assert result.tonality is tonality
+
+
 def test_semitone_transposition_preserves_tonality_and_note_metadata():
     tonality = Tonality("C")
     note = Note(
