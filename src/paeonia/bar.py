@@ -242,6 +242,71 @@ class Bar:
             notes = self.notes[-steps:] + self.notes[:-steps]
         return Bar(notes, tonality=self.tonality)
 
+    def gate_notes(
+            self,
+            pattern: Iterable[bool | int] | str,
+            *,
+            extend_previous: bool = False,
+    ) -> "Bar":
+        """Apply one gate switch to each event and return a new bar.
+
+        This is the finite, bar-sized counterpart of
+        :func:`paeonia.tools.gate_notes`. An open gate retains its event and a
+        closed gate replaces it with an untied rest. String patterns use
+        ``"x"`` for an open gate and ``"."`` for a closed gate. With
+        ``extend_previous=True``, closed events are absorbed into the duration
+        of the preceding open event; leading closed events remain rests.
+
+        The pattern must contain exactly one switch per source event. Tonality
+        and active-event metadata are preserved, and the source bar is not
+        modified.
+
+        Parameters
+        ----------
+        pattern : Iterable[bool | int] | str
+            Gate switches matching the number of events in the bar.
+        extend_previous : bool, default=False
+            Extend an earlier active event across following closed events.
+
+        Returns
+        -------
+        Bar
+            A new bar containing one gated pass over the source events.
+
+        Raises
+        ------
+        ValueError
+            If the pattern length differs from the number of events or a
+            string contains unsupported characters.
+        TypeError
+            If switches or ``extend_previous`` have unsupported types.
+        """
+        from .tools import gate_notes
+
+        supplied_pattern = (
+            pattern
+            if isinstance(pattern, str)
+            else tuple(pattern)
+        )
+        if len(supplied_pattern) != len(self):
+            raise ValueError(
+                "pattern length must match the number of events in the bar"
+            )
+        if not isinstance(extend_previous, bool):
+            raise TypeError("extend_previous must be a boolean")
+        if not self:
+            return Bar(tonality=self.tonality)
+
+        return Bar(
+            gate_notes(
+                self,
+                supplied_pattern,
+                extend_previous=extend_previous,
+                frames=len(self),
+            ),
+            tonality=self.tonality,
+        )
+
     def map_pitches(self, function: Callable[[Pitch], Pitch]) -> "Bar":
         """Apply a function to every pitch in the bar.
 

@@ -325,6 +325,70 @@ def test_rotate_rejects_non_integer_steps():
         Bar("C").rotate(1.5)
 
 
+def test_gate_notes_applies_one_string_switch_per_event():
+    tonality = Tonality("C", "minor")
+    bar = Bar("C8 D16 E4 F2 G8 A16 B4", tonality=tonality)
+    original = copy(bar)
+
+    gated = bar.gate_notes("x...x..")
+
+    assert [note.is_rest() for note in gated] == [
+        False,
+        True,
+        True,
+        True,
+        False,
+        True,
+        True,
+    ]
+    assert gated[0] is bar[0]
+    assert gated[4] is bar[4]
+    assert [note.duration for note in gated] == [
+        note.duration for note in bar
+    ]
+    assert gated.span() == bar.span()
+    assert gated.tonality is tonality
+    assert gated is not bar
+    assert bar == original
+
+
+def test_bar_gate_notes_extends_only_within_its_finite_event_pass():
+    bar = Bar("C8 D16 E4 F8")
+
+    gated = bar.gate_notes(".x..", extend_previous=True)
+
+    assert len(gated) == 2
+    assert gated[0].is_rest()
+    assert gated[0].duration == Fraction(1, 8)
+    assert gated[1].pitches == bar[1].pitches
+    assert gated[1].duration == Fraction(7, 16)
+    assert gated.span() == bar.span()
+
+
+@pytest.mark.parametrize("pattern", ["xx", "xxxx", [1, 0]])
+def test_bar_gate_notes_requires_exactly_one_switch_per_event(pattern):
+    with pytest.raises(ValueError, match="pattern length must match"):
+        Bar("C D E").gate_notes(pattern)
+
+
+def test_bar_gate_notes_validates_switches_through_tools_function():
+    with pytest.raises(ValueError, match='only "x" and "\\."'):
+        Bar("C D E").gate_notes("x?.")
+    with pytest.raises(TypeError, match="booleans or 0/1 integers"):
+        Bar("C D E").gate_notes([1, 2, 0])
+
+
+def test_bar_gate_notes_handles_an_empty_bar_without_losing_tonality():
+    tonality = Tonality("Eb", "dorian")
+    bar = Bar(tonality=tonality)
+
+    gated = bar.gate_notes("")
+
+    assert gated == bar
+    assert gated is not bar
+    assert gated.tonality is tonality
+
+
 def test_split_returns_voice_of_complete_measures_and_pads_final_bar():
     tonality = Tonality("C", "minor")
     bar = Bar("C1 D4", tonality=tonality)

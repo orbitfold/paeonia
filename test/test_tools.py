@@ -179,6 +179,60 @@ def test_gate_notes_accepts_binary_integer_switches():
     ]
 
 
+def test_gate_notes_accepts_x_and_dot_string_patterns():
+    bar = Bar("C D E F G A B")
+
+    emitted = list(islice(gate_notes(bar, "x...x.."), len(bar)))
+
+    assert [note.is_rest() for note in emitted] == [
+        False,
+        True,
+        True,
+        True,
+        False,
+        True,
+        True,
+    ]
+    assert emitted[0] is bar[0]
+    assert emitted[4] is bar[4]
+
+
+@pytest.mark.parametrize("pattern", ["x?", "X.", "x1"])
+def test_gate_notes_rejects_invalid_string_patterns(pattern):
+    with pytest.raises(ValueError, match='only "x" and "\\."'):
+        next(gate_notes(Bar("C D"), pattern))
+
+
+def test_gate_notes_can_consume_a_finite_number_of_source_frames():
+    bar = Bar("C8 D16 E4")
+
+    emitted = list(gate_notes(
+        bar,
+        ".x.",
+        extend_previous=True,
+        frames=len(bar),
+    ))
+
+    assert len(emitted) == 2
+    assert emitted[0].is_rest()
+    assert emitted[0].duration == Fraction(1, 8)
+    assert emitted[1].pitches == bar[1].pitches
+    assert emitted[1].duration == Fraction(5, 16)
+
+
+@pytest.mark.parametrize(
+    ("frames", "exception", "message"),
+    [
+        (1.5, TypeError, "frames must be an integer or None"),
+        (True, TypeError, "frames must be an integer or None"),
+        (-1, ValueError, "frames must not be negative"),
+    ],
+)
+def test_gate_notes_validates_finite_frame_count(frames, exception, message):
+    with pytest.raises(exception, match=message):
+        next(gate_notes(Bar("C"), "x", frames=frames))
+
+
 @pytest.mark.parametrize("switch", [2, -1, 1.0, "1"])
 def test_gate_notes_rejects_non_binary_switches(switch):
     with pytest.raises(TypeError, match="booleans or 0/1 integers"):

@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable, Iterator
 from fractions import Fraction
-from itertools import cycle
+from itertools import cycle, islice
 
 from .bar import Bar
 from .note import Note
@@ -76,11 +76,12 @@ def note_repeat(bar: Bar, repeats: Iterable[int]) -> Iterator[Note]:
 
 def gate_notes(
         bar: Bar,
-        pattern: Iterable[bool | int],
+        pattern: Iterable[bool | int] | str,
         *,
         extend_previous: bool = False,
+        frames: int | None = None,
 ) -> Iterator[Note]:
-    """Yield an endless note stream controlled by a cycling gate pattern.
+    """Yield a note stream controlled by a cycling gate pattern.
 
     The notes in ``bar`` and switches in ``pattern`` advance together and
     cycle independently. A true switch opens the gate and yields the original
@@ -94,13 +95,18 @@ def gate_notes(
     ----------
     bar : Bar
         Non-empty bar whose events are cycled indefinitely.
-    pattern : Iterable[bool | int]
+    pattern : Iterable[bool | int] | str
         Finite, non-empty pattern containing Boolean values or the equivalent
-        integers ``0`` and ``1``. The iterable is materialized once so
+        integers ``0`` and ``1``. A string may use ``"x"`` for an open gate
+        and ``"."`` for a closed gate. The pattern is materialized once so
         generator patterns can be validated and cycled.
     extend_previous : bool, default=False
         Merge the durations of muted events into the preceding active event.
         Muted events before the first active event remain rests.
+    frames : int | None, default=None
+        Number of source frames to consume. The default yields indefinitely;
+        a finite value stops after that many frames and flushes a final
+        extended event.
 
     Yields
     ------
@@ -111,10 +117,12 @@ def gate_notes(
     Raises
     ------
     ValueError
-        If the bar or switch pattern is empty.
+        If the bar or switch pattern is empty, a string pattern contains
+        characters other than ``"x"`` and ``"."``, or ``frames`` is
+        negative.
     TypeError
-        If a switch is not Boolean, ``0``, or ``1``, or if
-        ``extend_previous`` is not Boolean.
+        If a switch is not Boolean, ``0``, or ``1``, or an option has the
+        wrong type.
 
     Notes
     -----
@@ -124,7 +132,15 @@ def gate_notes(
     """
     if not bar:
         raise ValueError("bar must contain at least one note")
-    supplied_pattern = tuple(pattern)
+    if isinstance(pattern, str):
+        invalid = set(pattern) - {"x", "."}
+        if invalid:
+            raise ValueError(
+                'string patterns may contain only "x" and "."'
+            )
+        supplied_pattern = tuple(character == "x" for character in pattern)
+    else:
+        supplied_pattern = tuple(pattern)
     if not supplied_pattern:
         raise ValueError("pattern must contain at least one switch")
     if not all(
@@ -135,9 +151,18 @@ def gate_notes(
         raise TypeError("pattern switches must be booleans or 0/1 integers")
     if not isinstance(extend_previous, bool):
         raise TypeError("extend_previous must be a boolean")
+    if (
+            frames is not None
+            and (isinstance(frames, bool) or not isinstance(frames, int))
+    ):
+        raise TypeError("frames must be an integer or None")
+    if frames is not None and frames < 0:
+        raise ValueError("frames must not be negative")
     switch_pattern = tuple(bool(switch) for switch in supplied_pattern)
 
     events = zip(cycle(bar.notes), cycle(switch_pattern))
+    if frames is not None:
+        events = islice(events, frames)
     if not extend_previous:
         for note, switch in events:
             if switch:
@@ -164,6 +189,8 @@ def gate_notes(
             previous = previous.with_duration(
                 previous.duration + note.duration
             )
+    if previous is not None:
+        yield previous
 
 
 def pulses_to_durations(
