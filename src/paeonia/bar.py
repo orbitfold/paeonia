@@ -1,6 +1,6 @@
 from copy import copy
 from collections.abc import Callable, Iterable, Sequence
-from itertools import cycle
+from itertools import cycle, islice
 from fractions import Fraction
 from typing import TYPE_CHECKING
 import random
@@ -172,20 +172,31 @@ class Bar:
 
     def stretch(
             self,
-            factor: int | float | Fraction,
+            factor: (
+                int
+                | float
+                | Fraction
+                | Iterable[int | float | Fraction]
+            ),
             *,
             quantize: bool = True,
     ) -> "Bar":
-        """Stretch every event duration and return a new bar.
+        """Stretch event durations and return a new bar.
 
-        Each event is transformed through :meth:`Note.stretch`, so rests,
+        A single factor is applied to every event. When an iterable is given,
+        events and factors advance together: factors cycle when shorter than
+        the bar, and bar events cycle when the factor pattern is longer.
+        Pairing stops after the longer input has been consumed once.
+
+        Each result is transformed through :meth:`Note.stretch`, so rests,
         chords, pitches, velocity, and tie metadata retain their existing
         behavior. The source bar is unchanged and its tonality is preserved.
 
         Parameters
         ----------
-        factor : int | float | Fraction
-            Finite, strictly positive duration multiplier.
+        factor : int | float | Fraction | Iterable[int | float | Fraction]
+            A finite, strictly positive duration multiplier, or a finite,
+            non-empty pattern of such multipliers.
         quantize : bool, default=True
             Snap each result to the nearest duration directly supported by
             the LilyPond renderer. Set this to false to retain exact multiplied
@@ -199,12 +210,46 @@ class Bar:
         Raises
         ------
         TypeError
-            If ``factor`` or ``quantize`` has an unsupported type.
+            If a factor or ``quantize`` has an unsupported type.
         ValueError
-            If ``factor`` is non-finite or not strictly positive.
+            If a factor is non-finite or not strictly positive, the factor
+            pattern is empty, or a non-empty pattern is applied to an empty
+            bar.
         """
-        return self.map_notes(
-            lambda note: note.stretch(factor, quantize=quantize)
+        if not isinstance(quantize, bool):
+            raise TypeError("quantize must be a boolean")
+
+        if isinstance(factor, (int, float, Fraction)):
+            if not self:
+                Note.rest().stretch(factor, quantize=quantize)
+            return self.map_notes(
+                lambda note: note.stretch(factor, quantize=quantize)
+            )
+
+        try:
+            factors = tuple(factor)
+        except TypeError as exc:
+            raise TypeError(
+                "factor must be an integer, float, Fraction, or iterable"
+            ) from exc
+        if not factors:
+            raise ValueError("factor pattern must contain at least one value")
+        if not self:
+            raise ValueError(
+                "cannot cycle events from an empty bar"
+            )
+
+        frame_count = max(len(self), len(factors))
+        pairs = islice(
+            zip(cycle(self.notes), cycle(factors)),
+            frame_count,
+        )
+        return Bar(
+            (
+                note.stretch(amount, quantize=quantize)
+                for note, amount in pairs
+            ),
+            tonality=self.tonality,
         )
 
     def rotate(self, steps: int) -> "Bar":

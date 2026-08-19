@@ -255,6 +255,93 @@ def test_stretch_forwards_quantization_option_to_every_note():
     ]
 
 
+def test_stretch_cycles_a_shorter_factor_pattern():
+    bar = Bar("C8 D8 E8")
+
+    stretched = bar.stretch([1, 2])
+
+    assert [note.pitches for note in stretched] == [
+        bar[0].pitches,
+        bar[1].pitches,
+        bar[2].pitches,
+    ]
+    assert [note.duration for note in stretched] == [
+        Fraction(1, 8),
+        Fraction(1, 4),
+        Fraction(1, 8),
+    ]
+
+
+def test_stretch_cycles_a_shorter_bar():
+    bar = Bar("C8 D8")
+
+    stretched = bar.stretch([1, 2, 3])
+
+    assert [note.pitches for note in stretched] == [
+        bar[0].pitches,
+        bar[1].pitches,
+        bar[0].pitches,
+    ]
+    assert [note.duration for note in stretched] == [
+        Fraction(1, 8),
+        Fraction(1, 4),
+        Fraction(3, 8),
+    ]
+
+
+def test_patterned_stretch_accepts_iterator_and_preserves_metadata():
+    tonality = Tonality("Eb", "minor")
+    chord = Note.parse("<Eb Gb Bb>8").with_velocity(0.4).with_ties(
+        tie_out=True,
+    )
+    rest = Note.rest(Fraction(1, 16)).with_velocity(0.2)
+    bar = Bar([chord, rest], tonality=tonality)
+    original = copy(bar)
+
+    stretched = bar.stretch(iter([2]))
+
+    assert [note.duration for note in stretched] == [
+        Fraction(1, 4),
+        Fraction(1, 8),
+    ]
+    assert [note.pitches for note in stretched] == [
+        chord.pitches,
+        rest.pitches,
+    ]
+    assert [note.velocity for note in stretched] == [0.4, 0.2]
+    assert stretched[0].tie_out is True
+    assert stretched.tonality is tonality
+    assert stretched is not bar
+    assert bar == original
+
+
+def test_patterned_stretch_forwards_exact_duration_option():
+    stretched = Bar("C4 D4").stretch(
+        [Fraction(5, 4)],
+        quantize=False,
+    )
+
+    assert [note.duration for note in stretched] == [
+        Fraction(5, 16),
+        Fraction(5, 16),
+    ]
+
+
+def test_patterned_stretch_rejects_empty_inputs():
+    with pytest.raises(ValueError, match="factor pattern must contain"):
+        Bar("C").stretch([])
+    with pytest.raises(ValueError, match="empty bar"):
+        Bar().stretch([2])
+
+
+@pytest.mark.parametrize("factors", [[1, 0], [1, -1], [1, "two"]])
+def test_patterned_stretch_validates_every_factor(factors):
+    exception = ValueError if factors[-1] != "two" else TypeError
+
+    with pytest.raises(exception):
+        Bar("C D").stretch(factors)
+
+
 def test_gate_then_stretch_retains_exact_long_durations():
     motif = Bar(
         "C8 G Eb D C G Bb D",
