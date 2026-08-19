@@ -28,7 +28,12 @@ def _split_note(
     )
 
 
-def note_repeat(bar: Bar, repeats: Iterable[int]) -> Iterator[Note]:
+def note_repeat(
+        bar: Bar,
+        repeats: Iterable[int],
+        *,
+        frames: int | None = None,
+) -> Iterator[Note]:
     """Yield notes indefinitely using a cycling repeat-count pattern.
 
     The notes in ``bar`` and the values in ``repeats`` advance together and
@@ -44,6 +49,10 @@ def note_repeat(bar: Bar, repeats: Iterable[int]) -> Iterator[Note]:
     repeats : Iterable[int]
         Finite, non-empty pattern of positive repeat counts. The iterable is
         materialized once so that it can be validated and cycled.
+    frames : int | None, default=None
+        Number of note/count pairs to consume. The default yields
+        indefinitely; a finite value makes the stream stop after that many
+        pairs.
 
     Yields
     ------
@@ -54,9 +63,9 @@ def note_repeat(bar: Bar, repeats: Iterable[int]) -> Iterator[Note]:
     ------
     ValueError
         If the bar or repeat pattern is empty, or a repeat count is not
-        positive.
+        positive, or ``frames`` is negative.
     TypeError
-        If a repeat count is not an integer.
+        If a repeat count is not an integer or ``frames`` has the wrong type.
     """
     if not bar:
         raise ValueError("bar must contain at least one note")
@@ -68,8 +77,18 @@ def note_repeat(bar: Bar, repeats: Iterable[int]) -> Iterator[Note]:
         raise TypeError("repeat counts must be integers")
     if not all(count > 0 for count in repeat_pattern):
         raise ValueError("repeat counts must be positive")
+    if (
+            frames is not None
+            and (isinstance(frames, bool) or not isinstance(frames, int))
+    ):
+        raise TypeError("frames must be an integer or None")
+    if frames is not None and frames < 0:
+        raise ValueError("frames must not be negative")
 
-    for note, count in zip(cycle(bar.notes), cycle(repeat_pattern)):
+    events = zip(cycle(bar.notes), cycle(repeat_pattern))
+    if frames is not None:
+        events = islice(events, frames)
+    for note, count in events:
         for _ in range(count):
             yield note
 

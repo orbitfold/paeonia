@@ -571,14 +571,55 @@ def test_paeonia_round_trip_preserves_written_pitch_spelling_and_structure():
 
     assert semantic_events(round_tripped) == semantic_events(bar)
     
-def test_note_repeat():
-    bar1 = Bar("C D E F G")
-    generator = bar1.note_repeat([2, 3, 1])
-    bar2 = Bar(" ".join(["R" for _ in range(16)]))
-    result = bar2.take(generator, pitches=True)
+def test_note_repeat_cycles_a_shorter_repeat_pattern():
+    bar = Bar("C D E F G")
 
-    assert result == Bar("C C D D D E F F G G G C D D E E")
-    assert bar2 == Bar(" ".join(["R" for _ in range(16)]))
+    result = bar.note_repeat([2, 3, 1])
+
+    assert result == Bar("C C D D D E F F G G G")
+
+
+def test_note_repeat_cycles_a_shorter_bar():
+    bar = Bar("C D")
+
+    result = bar.note_repeat([1, 2, 3])
+
+    assert result == Bar("C D D C C C")
+
+
+def test_note_repeat_returns_new_bar_and_preserves_metadata():
+    tonality = Tonality("Eb", "minor")
+    chord = Note.parse("<Eb Gb Bb>8").with_velocity(0.4).with_ties(
+        tie_out=True,
+    )
+    rest = Note.rest(Fraction(1, 16)).with_velocity(0.2)
+    bar = Bar([chord, rest], tonality=tonality)
+    original = copy(bar)
+
+    result = bar.note_repeat(iter([2]))
+
+    assert result.notes == [chord, chord, rest, rest]
+    assert all(
+        actual is expected
+        for actual, expected in zip(result, [chord, chord, rest, rest])
+    )
+    assert result.tonality is tonality
+    assert result is not bar
+    assert bar == original
+
+
+@pytest.mark.parametrize(
+    ("bar", "repeats", "exception", "message"),
+    [
+        (Bar(), [1], ValueError, "bar must contain"),
+        (Bar("C"), [], ValueError, "repeats must contain"),
+        (Bar("C"), [0], ValueError, "repeat counts must be positive"),
+        (Bar("C"), [1.5], TypeError, "repeat counts must be integers"),
+    ],
+)
+def test_bar_note_repeat_validates_inputs(bar, repeats, exception, message):
+    with pytest.raises(exception, match=message):
+        bar.note_repeat(repeats)
 
 def test_take():
     bar1 = Bar("C D E F G")

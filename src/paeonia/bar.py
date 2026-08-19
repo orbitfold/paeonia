@@ -324,26 +324,45 @@ class Bar:
         """
         return self.map_notes(lambda note: note.map_pitches(function))
 
-    def note_repeat(self, times):
-        """Repeat notes according to the pattern provided.
+    def note_repeat(self, repeats: Iterable[int]) -> "Bar":
+        """Repeat events according to a cycling count pattern.
+
+        This is the finite counterpart of :func:`paeonia.tools.note_repeat`.
+        Events and counts advance together. If the count pattern is shorter
+        than the bar, the counts cycle; if it is longer, the bar's events
+        cycle. Pairing stops after the longer input has been consumed once.
+        The source bar is unchanged and its tonality and event metadata are
+        preserved.
 
         Parameters
         ----------
-        times: list
-            A list with repeat values (will be cycled if it runs out).
+        repeats : Iterable[int]
+            Finite, non-empty sequence of positive repeat counts.
 
         Returns
         -------
-        Generator
-            A generator of repeated notes.
+        Bar
+            A new bar containing the repeated event sequence.
+
+        Raises
+        ------
+        ValueError
+            If the bar or repeat pattern is empty, or a count is not positive.
+        TypeError
+            If a repeat count is not an integer.
         """
-        times = cycle(times)
-        notes = cycle(self)
-        while True:
-            time = next(times)
-            note = next(notes)
-            for _ in range(time):
-                yield note
+        from .tools import note_repeat
+
+        repeat_pattern = tuple(repeats)
+        frame_count = max(len(self), len(repeat_pattern))
+        return Bar(
+            note_repeat(
+                self,
+                repeat_pattern,
+                frames=frame_count,
+            ),
+            tonality=self.tonality,
+        )
 
     def repeat(self, times):
         """Repeat the bar while preserving its tonality.

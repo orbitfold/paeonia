@@ -86,6 +86,27 @@ def test_note_repeat_rejects_non_integer_counts():
         next(note_repeat(Bar("C"), [1.5]))
 
 
+def test_note_repeat_can_consume_a_finite_number_of_pairs():
+    bar = Bar("C D")
+
+    emitted = list(note_repeat(bar, [1, 2, 3], frames=3))
+
+    assert emitted == [bar[0], bar[1], bar[1], bar[0], bar[0], bar[0]]
+
+
+@pytest.mark.parametrize(
+    ("frames", "exception", "message"),
+    [
+        (1.5, TypeError, "frames must be an integer or None"),
+        (True, TypeError, "frames must be an integer or None"),
+        (-1, ValueError, "frames must not be negative"),
+    ],
+)
+def test_note_repeat_validates_finite_frame_count(frames, exception, message):
+    with pytest.raises(exception, match=message):
+        next(note_repeat(Bar("C"), [1], frames=frames))
+
+
 def test_gate_notes_cycles_notes_and_switches_independently():
     a = Note.parse("C")
     b = Note.parse("D")
