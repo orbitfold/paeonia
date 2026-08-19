@@ -1048,6 +1048,173 @@ def test_tonal_intervals_validate_context_and_rest_policy():
         bar.tonal_intervals(chromatic="unknown")
 
 
+def test_scale_intervals_defaults_to_tonal_degrees():
+    tonality = Tonality("C")
+    bar = Bar("C D E", tonality=tonality)
+    original = copy(bar)
+
+    tonal = bar.scale_intervals(2)
+    chromatic = bar.scale_intervals(2, chromatic=True)
+
+    assert tonal == Bar("C E G", tonality=tonality)
+    assert chromatic == Bar("C E G#", tonality=tonality)
+    assert tonal.tonality is tonality
+    assert chromatic.tonality is tonality
+    assert bar == original
+
+
+def test_scale_intervals_contracts_with_exact_fractional_factors():
+    tonality = Tonality("C")
+
+    tonal = Bar("C E G", tonality=tonality).scale_intervals(
+        Fraction(1, 2),
+    )
+    chromatic = Bar("C E G#", tonality=tonality).scale_intervals(
+        Fraction(1, 2),
+        chromatic=True,
+    )
+
+    assert tonal == Bar("C D E", tonality=tonality)
+    assert chromatic == Bar("C D E", tonality=tonality)
+
+
+def test_scale_intervals_can_add_to_signed_tonal_intervals():
+    tonality = Tonality("C")
+
+    result = Bar("C E D", tonality=tonality).scale_intervals(
+        1,
+        operation="add",
+    )
+
+    assert result == Bar("C F F", tonality=tonality)
+
+
+def test_scale_intervals_can_add_to_signed_chromatic_intervals():
+    tonality = Tonality("C")
+
+    result = Bar("C E D", tonality=tonality).scale_intervals(
+        1,
+        operation="add",
+        chromatic=True,
+    )
+
+    assert result == Bar("C F E", tonality=tonality)
+
+
+def test_scale_intervals_cycles_an_addition_pattern():
+    tonality = Tonality("C")
+
+    result = Bar("C D E F", tonality=tonality).scale_intervals(
+        [1, -1],
+        operation="add",
+    )
+
+    assert result == Bar("C E E G", tonality=tonality)
+
+
+def test_scale_intervals_cycles_a_shorter_factor_pattern():
+    tonality = Tonality("C")
+
+    result = Bar("C D E F", tonality=tonality).scale_intervals([1, 2])
+
+    assert result == Bar("C D F G", tonality=tonality)
+
+
+def test_scale_intervals_cycles_bar_layout_for_a_longer_pattern():
+    tonality = Tonality("C")
+    bar = Bar("C D", tonality=tonality)
+
+    result = bar.scale_intervals([1, 2, 1])
+
+    assert [str(note.pitches[0]) for note in result] == [
+        "C4",
+        "D4",
+        "B3",
+        "C4",
+    ]
+    assert [note.duration for note in result] == [Fraction(1, 4)] * 4
+    assert result.tonality is tonality
+
+
+def test_scale_intervals_preserves_rests_chords_and_note_metadata():
+    tonality = Tonality("C")
+    chord = Note.parse("<C E>8").with_velocity(0.4).with_ties(
+        tie_out=True,
+    )
+    rest = Note.rest(Fraction(1, 16)).with_velocity(0.2)
+    final = Note.parse("G4").with_velocity(0.6).with_ties(tie_in=True)
+    bar = Bar([chord, rest, final], tonality=tonality)
+    original = copy(bar)
+
+    result = bar.scale_intervals(2)
+
+    assert [[str(pitch) for pitch in note.pitches] for note in result] == [
+        ["C4", "G4"],
+        [],
+        ["D5"],
+    ]
+    assert [note_metadata(note) for note in result] == [
+        note_metadata(note) for note in bar
+    ]
+    assert result[1] is rest
+    assert result.tonality is tonality
+    assert bar == original
+
+
+def test_tonal_interval_scaling_preserves_corresponding_alterations():
+    tonality = Tonality("C")
+
+    result = Bar("C F# G", tonality=tonality).scale_intervals(2)
+
+    assert [str(note.pitches[0]) for note in result] == [
+        "C4",
+        "B#5",
+        "D5",
+    ]
+
+
+def test_scale_intervals_requires_integral_resulting_steps():
+    tonality = Tonality("C")
+
+    with pytest.raises(ValueError, match="not integral"):
+        Bar("C D", tonality=tonality).scale_intervals(Fraction(1, 2))
+    with pytest.raises(ValueError, match="not integral"):
+        Bar("C D", tonality=tonality).scale_intervals(
+            Fraction(1, 3),
+            chromatic=True,
+        )
+
+
+def test_scale_intervals_validates_context_patterns_and_options():
+    with pytest.raises(ValueError, match="No tonality"):
+        Bar("C D").scale_intervals(2)
+    assert Bar("C D").scale_intervals(2, chromatic=True) == Bar("C E")
+
+    bar = Bar("C D", tonality=Tonality("C"))
+    with pytest.raises(ValueError, match="factor pattern must contain"):
+        bar.scale_intervals([])
+    with pytest.raises(TypeError, match="chromatic must be a boolean"):
+        bar.scale_intervals(2, chromatic="yes")
+    with pytest.raises(ValueError, match="Unknown interval operation"):
+        bar.scale_intervals(2, operation="divide")
+    with pytest.raises(ValueError, match="Unknown alteration policy"):
+        bar.scale_intervals(2, alteration_policy="unknown")
+    with pytest.raises(TypeError, match="interval values"):
+        bar.scale_intervals([1, "two"])
+    with pytest.raises(ValueError, match="finite"):
+        bar.scale_intervals([1, float("inf")])
+
+
+def test_scale_intervals_empty_bar_and_explicit_tonality():
+    tonality = Tonality("D", "minor")
+
+    result = Bar().scale_intervals(2, tonality=tonality)
+
+    assert result == Bar(tonality=tonality)
+    with pytest.raises(ValueError, match="empty bar"):
+        Bar(tonality=tonality).scale_intervals([2])
+
+
 def test_inversion():
     bar1 = Bar("C2 Eb D4 G R F#")
     bar2 = bar1.inversion()

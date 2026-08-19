@@ -846,6 +846,246 @@ class Bar:
         ]
         return [b - a for a, b in zip(absolute[:-1], absolute[1:])]
 
+    def scale_intervals(
+            self,
+            factor: (
+                int
+                | float
+                | Fraction
+                | Iterable[int | float | Fraction]
+            ),
+            *,
+            operation: str = "multiply",
+            chromatic: bool = False,
+            tonality: Tonality | None = None,
+            alteration_policy: str = "preserve_alteration",
+    ) -> "Bar":
+        """Contract or expand successive intervals around the first pitch.
+
+        By default, values multiply successive signed intervals while the
+        first sounding pitch remains fixed. Values between zero and one
+        contract intervals, values greater than one expand them, zero
+        collapses them, and negative values additionally invert their
+        direction. With ``operation="add"``, values are instead added to the
+        signed intervals: for example, adding one changes ``-3`` to ``-2``.
+
+        By default, intervals are measured in scale degrees using ``tonality``
+        or the bar's assigned tonality. Set ``chromatic=True`` to measure them
+        in MIDI semitones instead. Tonal scaling preserves each corresponding
+        source pitch's chromatic alteration according to
+        ``alteration_policy``.
+
+        A single factor applies to every interval without changing the event
+        layout. For an iterable, factors and successive flattened pitches
+        advance together. A short pattern cycles across the bar's intervals.
+        If the pattern is longer, the source event layout cycles until every
+        supplied factor has been used at least once. Chord boundaries, rests,
+        durations, velocities, and ties are retained; a repeated partial cycle
+        always includes complete events.
+
+        Resulting tonal degrees and semitone intervals must remain integral.
+        For example, contracting a two-degree interval by
+        ``Fraction(1, 2)`` is valid, while contracting a one-degree interval
+        by the same factor is not representable and raises an error.
+
+        Parameters
+        ----------
+        factor : int | float | Fraction | Iterable[int | float | Fraction]
+            Finite interval value or finite, non-empty value pattern.
+        operation : str, default="multiply"
+            Combine intervals and values with ``"multiply"`` or ``"add"``.
+        chromatic : bool, default=False
+            Measure intervals in semitones instead of tonal scale degrees.
+        tonality : Tonality | None
+            Tonality used for tonal interval analysis. Defaults to the bar's
+            tonality and is ignored for chromatic scaling.
+        alteration_policy : str, default="preserve_alteration"
+            Tonal pitch-analysis policy: ``"preserve_alteration"``,
+            ``"error"``, or ``"nearest"``.
+
+        Returns
+        -------
+        Bar
+            A new interval-scaled bar with preserved event metadata.
+
+        Raises
+        ------
+        TypeError
+            If a factor or option has an unsupported type.
+        ValueError
+            If a pattern is empty, no tonal context is available, a policy is
+            unknown, a scaled interval is not integral, or a pitch leaves the
+            MIDI range.
+        """
+        if operation not in {"multiply", "add"}:
+            raise ValueError(f"Unknown interval operation: {operation}")
+        if not isinstance(chromatic, bool):
+            raise TypeError("chromatic must be a boolean")
+        if alteration_policy not in {
+                "preserve_alteration",
+                "error",
+                "nearest",
+        }:
+            raise ValueError(
+                f"Unknown alteration policy: {alteration_policy}"
+            )
+
+        def normalize(value: int | float | Fraction) -> Fraction:
+            if isinstance(value, bool) or not isinstance(
+                    value,
+                    (int, float, Fraction),
+            ):
+                raise TypeError(
+                    "interval values must be integers, floats, or Fractions"
+                )
+            try:
+                return Fraction(
+                    str(value) if isinstance(value, float) else value
+                )
+            except (OverflowError, ValueError) as exc:
+                raise ValueError("interval values must be finite") from exc
+
+        patterned = not isinstance(factor, (int, float, Fraction))
+        if patterned:
+            try:
+                supplied_factors = tuple(factor)
+            except TypeError as exc:
+                raise TypeError(
+                    "factor must be a number or iterable of numbers"
+                ) from exc
+            if not supplied_factors:
+                raise ValueError(
+                    "factor pattern must contain at least one value"
+                )
+        else:
+            supplied_factors = (factor,)
+        factors = tuple(normalize(value) for value in supplied_factors)
+
+        selected_tonality = None
+        if chromatic:
+            result_tonality = self.tonality
+        else:
+            selected_tonality = self.tonality if tonality is None else tonality
+            if selected_tonality is None:
+                raise ValueError("No tonality is available")
+            result_tonality = selected_tonality
+
+        if not self:
+            if patterned:
+                raise ValueError("cannot cycle events from an empty bar")
+            return Bar(tonality=result_tonality)
+
+        source_pitch_count = sum(len(note.pitches) for note in self.notes)
+        templates = list(self.notes)
+        if patterned and source_pitch_count:
+            required_pitch_count = len(factors) + 1
+            expanded_pitch_count = source_pitch_count
+            events = cycle(self.notes)
+            while expanded_pitch_count < required_pitch_count:
+                note = next(events)
+                templates.append(note)
+                expanded_pitch_count += len(note.pitches)
+
+        source_pitches = [
+            pitch
+            for note in templates
+            for pitch in note.pitches
+        ]
+        if len(source_pitches) < 2:
+            return Bar(templates, tonality=result_tonality)
+
+        def scaled_interval(
+                interval: int,
+                amount: Fraction,
+                index: int,
+        ) -> int:
+            transformed = (
+                interval * amount
+                if operation == "multiply"
+                else interval + amount
+            )
+            if transformed.denominator != 1:
+                unit = "semitone" if chromatic else "scale-degree"
+                raise ValueError(
+                    f"Transformed {unit} interval {index} is not integral: "
+                    f"{interval} {operation} {amount} = {transformed}"
+                )
+            return transformed.numerator
+
+        if chromatic:
+            coordinates = [pitch.midi for pitch in source_pitches]
+            result_coordinates = [coordinates[0]]
+            for index, (previous, following, amount) in enumerate(zip(
+                    coordinates,
+                    coordinates[1:],
+                    cycle(factors),
+            )):
+                interval = scaled_interval(
+                    following - previous,
+                    amount,
+                    index,
+                )
+                result_coordinates.append(result_coordinates[-1] + interval)
+
+            transformed_pitches = []
+            for source, midi in zip(source_pitches, result_coordinates):
+                transformed_pitches.append(
+                    source if midi == source.midi else Pitch.from_midi(midi)
+                )
+        else:
+            assert selected_tonality is not None
+            positions = [
+                selected_tonality.analyze_pitch(
+                    pitch,
+                    chromatic=alteration_policy,
+                )
+                for pitch in source_pitches
+            ]
+            coordinates = [
+                position.tonal_octave * selected_tonality.degree_count
+                + position.degree
+                for position in positions
+            ]
+            result_coordinates = [coordinates[0]]
+            for index, (previous, following, amount) in enumerate(zip(
+                    coordinates,
+                    coordinates[1:],
+                    cycle(factors),
+            )):
+                interval = scaled_interval(
+                    following - previous,
+                    amount,
+                    index,
+                )
+                result_coordinates.append(result_coordinates[-1] + interval)
+
+            transformed_pitches = []
+            for coordinate, position in zip(result_coordinates, positions):
+                tonal_octave, degree = divmod(
+                    coordinate,
+                    selected_tonality.degree_count,
+                )
+                transformed_pitches.append(
+                    selected_tonality.realize_pitch(ScalePosition(
+                        degree=degree,
+                        tonal_octave=tonal_octave,
+                        alteration=position.alteration,
+                    ))
+                )
+            result_tonality = selected_tonality
+
+        pitch_iterator = iter(transformed_pitches)
+        transformed_notes = [
+            note
+            if note.is_rest()
+            else note.with_pitches(
+                next(pitch_iterator)
+                for _ in note.pitches
+            )
+            for note in templates
+        ]
+        return Bar(transformed_notes, tonality=result_tonality)
+
     def retrograde(self):
         """Return a bar with a retrograde pitch variant.
         Durations are unaffected.
