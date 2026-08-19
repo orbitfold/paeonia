@@ -6,10 +6,6 @@ from fractions import Fraction
 
 from .pitch import Pitch
 
-from copy import copy
-import random
-
-
 _NOTATABLE_BASE_DURATIONS = (
     Fraction(8),
     Fraction(4),
@@ -286,44 +282,6 @@ class Note:
         from .lilypond import note_to_lilypond
 
         return note_to_lilypond(self)
-
-    def map_tonality(self, tonality, method="random", rnd=None):
-        """Map the pitches this note consists of to a tonality.
-
-        Parameters
-        ----------
-        tonality: Tonality
-            Tonality to map to.
-        method: str
-            What method to use when there are more than one candidate.
-        rnd: Random
-            A random number generator.
-
-        Returns
-        -------
-        Note
-            A tonality mapped note.
-        """
-        assert(method in ["up", "down", "random"])
-        if rnd is None:
-            rnd = random
-        if self.is_rest():
-            return self
-        new_note = copy(self)
-        new_pitches = []
-        for pitch in self.pitches:
-            closest = tonality.closest(pitch)
-            if len(closest) == 1:
-                new_pitches.append(closest[0])
-            else:
-                if method == "up":
-                    new_pitches.append(max(closest))
-                elif method == "down":
-                    new_pitches.append(min(closest))
-                else:
-                    new_pitches.append(rnd.choice(closest))
-        new_note.pitches = new_pitches
-        return new_note
 
     def merge_pitches(self, other: "Note") -> "Note":
         """Merge the pitches of two notes (into a chord).

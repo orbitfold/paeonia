@@ -156,15 +156,6 @@ def test_rest_remains_rest_through_map_pitches_and_chromatic_transposition():
     assert transposed == rest
 
 
-def test_rest_remains_rest_through_tonality_mapping():
-    rest = Note.rest(duration=Fraction(1, 8))
-
-    mapped = rest.map_tonality(tonality=None)
-
-    assert mapped.pitches == ()
-    assert mapped == rest
-
-
 def test_dataclass_equality_distinguishes_enharmonic_spellings_but_sounds_like_does_not():
     sharp = Note(pitches=[Pitch.parse("D#4")])
     flat = Note(pitches=[Pitch.parse("Eb4")])

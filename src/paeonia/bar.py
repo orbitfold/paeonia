@@ -4,7 +4,6 @@ from itertools import cycle, islice
 from fractions import Fraction
 from typing import TYPE_CHECKING
 import random
-import warnings
 
 from .note import Note
 from .parser import parse
@@ -1333,36 +1332,6 @@ class Bar:
                 replacement = replacement.with_velocity(donor.velocity)
             result.append(replacement)
         return Bar(result, tonality=self.tonality)
-
-    def tonal_mode_change(self, tonality, mode):
-        """Deprecated wrapper around :meth:`apply_tonality`."""
-        warnings.warn(
-            (
-                "Bar.tonal_mode_change() is deprecated; "
-                "use apply_tonality() instead."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        target = Tonality(tonality.tonic, mode)
-        return self.apply_tonality(target, source=tonality)
-
-    def map_tonality(self, tonality, method="random", seed=7):
-        """Deprecated wrapper around :meth:`quantize_to_tonality`."""
-        warnings.warn(
-            (
-                "Bar.map_tonality() is deprecated; "
-                "use quantize_to_tonality() instead."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        direction = "nearest" if method == "random" else method
-        return self.quantize_to_tonality(
-            tonality,
-            direction=direction,
-            tie_break="lower",
-        )
 
     def merge_pitches(self, other: "Bar") -> "Bar":
         """Merge corresponding events from rhythmically compatible bars.

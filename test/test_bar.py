@@ -800,25 +800,6 @@ def test_random_order():
     assert(bar1.random_order() != bar1)
     assert(bar1.random_order().ascending() == Bar("C2 D E4 F R G"))
 
-def test_deprecated_map_tonality_delegates_and_warns(monkeypatch):
-    bar = Bar("C F#")
-    target = Tonality("C")
-    sentinel = Bar("C G", tonality=target)
-    calls = []
-
-    def quantize(self, passed_target, *, direction, tie_break="lower"):
-        calls.append((self, passed_target, direction, tie_break))
-        return sentinel
-
-    monkeypatch.setattr(Bar, "quantize_to_tonality", quantize)
-
-    with pytest.warns(DeprecationWarning, match="map_tonality"):
-        result = bar.map_tonality(target, method="up")
-
-    assert result is sentinel
-    assert calls == [(bar, target, "up", "lower")]
-
-
 def test_apply_tonality_preserves_structure_and_assigns_target():
     source = Tonality("C")
     target = Tonality("D")
@@ -1288,25 +1269,6 @@ def test_tonal_inversion_nearest_policy_quantizes_anchor():
     )
 
     assert inverted == Bar("F", tonality=tonality)
-
-def test_deprecated_tonal_mode_change_delegates_and_warns(monkeypatch):
-    bar = Bar("<C E G>")
-    source = Tonality("C", "major")
-    target = Tonality("C", "minor")
-    sentinel = Bar("<C Eb G>", tonality=target)
-    calls = []
-
-    def apply(self, passed_target, source=None, **options):
-        calls.append((self, passed_target, source, options))
-        return sentinel
-
-    monkeypatch.setattr(Bar, "apply_tonality", apply)
-
-    with pytest.warns(DeprecationWarning, match="tonal_mode_change"):
-        result = bar.tonal_mode_change(source, "minor")
-
-    assert result is sentinel
-    assert calls == [(bar, target, source, {})]
 
 def test_merge_pitches():
     bar1 = Bar("C D2 R E D1 C R")
