@@ -43,6 +43,9 @@ def test_pitch_octave_comes_from_spelling_not_midi_division():
 @pytest.mark.parametrize(
     ("duration", "expected"),
     [
+        (Fraction(14), r"\maxima.."),
+        (Fraction(6), r"\longa."),
+        (Fraction(2), r"\breve"),
         (Fraction(1, 4), "4"),
         (Fraction(3, 8), "4."),
         (Fraction(7, 16), "4.."),

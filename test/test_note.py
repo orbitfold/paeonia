@@ -86,8 +86,25 @@ def test_stretch_can_retain_an_exact_unsupported_duration():
         stretched.to_lilypond()
 
 
+def test_stretch_quantization_uses_long_lilypond_durations():
+    stretched = Note.parse("C1").stretch(pi)
+
+    assert stretched.duration == Fraction(3)
+    assert stretched.to_lilypond() == r"c'\breve."
+
+
+def test_stretch_does_not_quantize_an_exact_double_whole_downward():
+    stretched = Note.parse("C4").stretch(8)
+
+    assert stretched.duration == Fraction(2)
+    assert stretched.to_lilypond() == r"c'\breve"
+
+
 def test_stretch_quantization_clamps_above_largest_notatable_duration():
-    assert Note.parse("C1").stretch(pi).duration == Fraction(7, 4)
+    stretched = Note.parse("C1").stretch(100)
+
+    assert stretched.duration == Fraction(14)
+    assert stretched.to_lilypond() == r"c'\maxima.."
 
 
 def test_stretch_works_for_rests():

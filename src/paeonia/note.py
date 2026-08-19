@@ -10,9 +10,16 @@ from copy import copy
 import random
 
 
+_NOTATABLE_BASE_DURATIONS = (
+    Fraction(8),
+    Fraction(4),
+    Fraction(2),
+    *(Fraction(1, 2**power) for power in range(8)),
+)
+
 _NOTATABLE_DURATIONS = tuple(sorted({
-    Fraction(1, 2**power) * multiplier
-    for power in range(8)
+    base * multiplier
+    for base in _NOTATABLE_BASE_DURATIONS
     for multiplier in (Fraction(1), Fraction(3, 2), Fraction(7, 4))
 }))
 
@@ -105,10 +112,10 @@ class Note:
         value: for example, ``0.5`` is treated as ``Fraction(1, 2)``. Pitches,
         velocity, and tie metadata are unchanged. By default, the result is
         quantized to the nearest duration that the current LilyPond renderer
-        can express as one token: a power-of-two value from a whole note
-        through a 128th note, with zero, one, or two dots. Equidistant values
-        choose the shorter duration, and values outside the supported range
-        clamp to its nearest endpoint.
+        can express as one token: a power-of-two value from a maxima through
+        a 128th note, with zero, one, or two dots. Equidistant values choose
+        the shorter duration, and values outside the supported range clamp to
+        its nearest endpoint.
 
         Parameters
         ----------

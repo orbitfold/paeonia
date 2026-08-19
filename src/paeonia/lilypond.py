@@ -39,6 +39,12 @@ LILYPOND_MODES = {
     "locrian": "locrian",
 }
 
+LILYPOND_LONG_DURATIONS = (
+    (Fraction(8), r"\maxima"),
+    (Fraction(4), r"\longa"),
+    (Fraction(2), r"\breve"),
+)
+
 
 def pitch_class_to_lilypond(pitch_class: PitchClass) -> str:
     """Render a spelled pitch class, including arbitrary accidentals."""
@@ -64,15 +70,19 @@ def pitch_to_lilypond(pitch: Pitch) -> str:
 def duration_to_lilypond(duration: Fraction) -> str:
     """Render an exact whole-note duration with at most two dots."""
     duration = Fraction(duration)
-    for denominator in (1, 2, 4, 8, 16, 32, 64, 128):
-        base = Fraction(1, denominator)
+    durations = (
+        *LILYPOND_LONG_DURATIONS,
+        *((Fraction(1, denominator), str(denominator))
+          for denominator in (1, 2, 4, 8, 16, 32, 64, 128)),
+    )
+    for base, notation in durations:
         for dots in range(3):
             multiplier = sum(
                 (Fraction(1, 2**dot) for dot in range(dots + 1)),
                 Fraction(0),
             )
             if base * multiplier == duration:
-                return f"{denominator}{'.' * dots}"
+                return f"{notation}{'.' * dots}"
     raise ValueError(f"Unsupported LilyPond duration: {duration}")
 
 

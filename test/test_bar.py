@@ -255,6 +255,26 @@ def test_stretch_forwards_quantization_option_to_every_note():
     ]
 
 
+def test_gate_then_stretch_retains_exact_long_durations():
+    motif = Bar(
+        "C8 G Eb D C G Bb D",
+        tonality=Tonality("C", "minor"),
+    )
+
+    result = (
+        motif - 12
+    ).gate_notes(
+        "x.x.x.x.",
+        extend_previous=True,
+    ).stretch(8)
+
+    assert [note.duration for note in result] == [Fraction(2)] * 4
+    assert result.span() == Fraction(8)
+    assert result.to_lilypond() == (
+        r"c\breve dis\breve c\breve ais\breve"
+    )
+
+
 def test_stretch_empty_bar_returns_new_bar_with_same_tonality():
     tonality = Tonality("C")
     bar = Bar(tonality=tonality)
