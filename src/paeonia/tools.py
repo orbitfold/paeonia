@@ -75,20 +75,21 @@ def note_repeat(bar: Bar, repeats: Iterable[int]) -> Iterator[Note]:
             yield note
 
 
-def turn_notes_off(
+def gate_notes(
         bar: Bar,
         pattern: Iterable[bool | int],
         *,
         extend_previous: bool = False,
 ) -> Iterator[Note]:
-    """Yield an endless note stream masked by a cycling Boolean pattern.
+    """Yield an endless note stream controlled by a cycling gate pattern.
 
     The notes in ``bar`` and switches in ``pattern`` advance together and
-    cycle independently. A true switch yields the original event unchanged; a
-    false switch normally yields an untied rest with the same duration and
-    velocity. With ``extend_previous=True``, muted events following an active
-    event are instead absorbed into that event's duration. Chords are treated
-    as single events. Existing rests remain rests.
+    cycle independently. A true switch opens the gate and yields the original
+    event unchanged; a false switch closes it and normally yields an untied
+    rest with the same duration and velocity. With ``extend_previous=True``,
+    closed frames following an active event are instead absorbed into that
+    event's duration. Chords are treated as single events. Existing rests
+    remain rests.
 
     Parameters
     ----------

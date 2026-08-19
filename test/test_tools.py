@@ -8,11 +8,11 @@ from paeonia.tools import (
     degree_feedback,
     euclidean_rhythm,
     fill_bars,
+    gate_notes,
     interval_feedback,
     note_repeat,
     pulses_to_durations,
     rule30_rhythm,
-    turn_notes_off,
 )
 
 
@@ -92,12 +92,12 @@ def test_note_repeat_rejects_non_integer_counts():
         next(note_repeat(Bar("C"), [1.5]))
 
 
-def test_turn_notes_off_cycles_notes_and_switches_independently():
+def test_gate_notes_cycles_notes_and_switches_independently():
     a = Note.parse("C")
     b = Note.parse("D")
     c = Note.parse("E")
 
-    stream = turn_notes_off(Bar([a, b, c]), [True, False])
+    stream = gate_notes(Bar([a, b, c]), [True, False])
     emitted = list(islice(stream, 7))
 
     assert [note.is_rest() for note in emitted] == [
@@ -115,12 +115,12 @@ def test_turn_notes_off_cycles_notes_and_switches_independently():
     assert emitted[6] is a
 
 
-def test_turn_notes_off_cycles_a_one_shot_pattern_iterator():
+def test_gate_notes_cycles_a_one_shot_pattern_iterator():
     a = Note.parse("C")
     b = Note.parse("D")
     pattern = iter((True, False))
 
-    emitted = list(islice(turn_notes_off(Bar([a, b]), pattern), 6))
+    emitted = list(islice(gate_notes(Bar([a, b]), pattern), 6))
 
     assert emitted[0] is a
     assert emitted[2] is a
@@ -130,7 +130,7 @@ def test_turn_notes_off_cycles_a_one_shot_pattern_iterator():
     assert emitted[5].is_rest()
 
 
-def test_turn_notes_off_preserves_metadata_and_does_not_mutate_source():
+def test_gate_notes_preserves_metadata_and_does_not_mutate_source():
     active = Note.parse("<C E G>8").with_velocity(0.4).with_ties(
         tie_out=True,
     )
@@ -140,7 +140,7 @@ def test_turn_notes_off_preserves_metadata_and_does_not_mutate_source():
     )
     bar = Bar([active, muted])
 
-    emitted = list(islice(turn_notes_off(bar, [True, False]), 2))
+    emitted = list(islice(gate_notes(bar, [True, False]), 2))
 
     assert emitted[0] is active
     assert emitted[1].is_rest()
@@ -159,17 +159,17 @@ def test_turn_notes_off_preserves_metadata_and_does_not_mutate_source():
         (Bar("C"), [], "pattern must contain"),
     ],
 )
-def test_turn_notes_off_rejects_empty_inputs(bar, pattern, message):
+def test_gate_notes_rejects_empty_inputs(bar, pattern, message):
     with pytest.raises(ValueError, match=message):
-        next(turn_notes_off(bar, pattern))
+        next(gate_notes(bar, pattern))
 
 
-def test_turn_notes_off_accepts_binary_integer_switches():
+def test_gate_notes_accepts_binary_integer_switches():
     a = Note.parse("C")
     b = Note.parse("D")
 
     emitted = list(islice(
-        turn_notes_off(Bar([a, b]), [1, 0, 0]),
+        gate_notes(Bar([a, b]), [1, 0, 0]),
         6,
     ))
 
@@ -186,19 +186,19 @@ def test_turn_notes_off_accepts_binary_integer_switches():
 
 
 @pytest.mark.parametrize("switch", [2, -1, 1.0, "1"])
-def test_turn_notes_off_rejects_non_binary_switches(switch):
+def test_gate_notes_rejects_non_binary_switches(switch):
     with pytest.raises(TypeError, match="booleans or 0/1 integers"):
-        next(turn_notes_off(Bar("C"), [switch]))
+        next(gate_notes(Bar("C"), [switch]))
 
 
-def test_turn_notes_off_can_extend_previous_note_over_muted_events():
+def test_gate_notes_can_extend_previous_note_over_muted_events():
     active = Note.parse("C8").with_velocity(0.4)
     first_muted = Note.parse("D16")
     second_muted = Note.parse("E4")
     bar = Bar([active, first_muted, second_muted])
 
     emitted = list(islice(
-        turn_notes_off(
+        gate_notes(
             bar,
             [True, False, False],
             extend_previous=True,
@@ -212,12 +212,12 @@ def test_turn_notes_off_can_extend_previous_note_over_muted_events():
     assert bar.notes == [active, first_muted, second_muted]
 
 
-def test_turn_notes_off_leaves_leading_muted_events_as_rests():
+def test_gate_notes_leaves_leading_muted_events_as_rests():
     leading = Note.parse("C8").with_velocity(0.2)
     active = Note.parse("D4").with_velocity(0.6)
 
     emitted = list(islice(
-        turn_notes_off(
+        gate_notes(
             Bar([leading, active]),
             [False, True],
             extend_previous=True,
@@ -232,11 +232,11 @@ def test_turn_notes_off_leaves_leading_muted_events_as_rests():
     assert emitted[1].duration == active.duration + leading.duration
 
 
-def test_turn_notes_off_all_false_extension_pattern_remains_productive():
+def test_gate_notes_all_false_extension_pattern_remains_productive():
     bar = Bar("C8 D16")
 
     emitted = list(islice(
-        turn_notes_off(bar, [False], extend_previous=True),
+        gate_notes(bar, [False], extend_previous=True),
         4,
     ))
 
@@ -246,9 +246,9 @@ def test_turn_notes_off_all_false_extension_pattern_remains_productive():
     ]
 
 
-def test_turn_notes_off_rejects_non_boolean_extension_option():
+def test_gate_notes_rejects_non_boolean_extension_option():
     with pytest.raises(TypeError, match="extend_previous must be a boolean"):
-        next(turn_notes_off(
+        next(gate_notes(
             Bar("C"),
             [True],
             extend_previous="yes",
