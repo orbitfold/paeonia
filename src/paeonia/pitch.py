@@ -158,7 +158,17 @@ class Pitch:
             *,
             prefer: str = "sharps",
     ) -> "Pitch":
-        return Pitch.from_midi(self.midi + semitones, prefer=prefer)
+        target_midi = self.midi + semitones
+        if not 0 <= target_midi <= 127:
+            raise ValueError(f"Invalid MIDI pitch: {target_midi}")
+
+        octave_delta, remainder = divmod(semitones, 12)
+        if remainder == 0:
+            return Pitch(
+                pitch_class=self.pitch_class,
+                octave=self.octave + octave_delta,
+            )
+        return Pitch.from_midi(target_midi, prefer=prefer)
 
     @override
     def __str__(self) -> str:

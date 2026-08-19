@@ -106,6 +106,38 @@ def test_semitone_transposition_preserves_tonality_and_note_metadata():
     assert lowered is not bar
 
 
+def test_octave_transposition_preserves_tonal_spelling_and_positions():
+    tonality = Tonality("C", "minor")
+    bar = Bar("C8 G Eb D C G Bb D", tonality=tonality)
+    source_positions = [
+        tonality.analyze_pitch(pitch)
+        for pitch in bar.pitches()
+    ]
+
+    raised = bar + 12
+    lowered = bar - 12
+
+    assert str(raised) == "C'8 G Eb D C G Bb D"
+    assert str(lowered) == "C,8 G Eb D C G Bb D"
+    assert raised.tonality is tonality
+    assert lowered.tonality is tonality
+    for result, octave_delta in ((raised, 1), (lowered, -1)):
+        result_positions = [
+            tonality.analyze_pitch(pitch)
+            for pitch in result.pitches()
+        ]
+        assert [position.degree for position in result_positions] == [
+            position.degree for position in source_positions
+        ]
+        assert [position.alteration for position in result_positions] == [
+            position.alteration for position in source_positions
+        ]
+        assert [position.tonal_octave for position in result_positions] == [
+            position.tonal_octave + octave_delta
+            for position in source_positions
+        ]
+
+
 def test_multiplication_and_repeat_preserve_tonality():
     tonality = Tonality("C")
     bar = Bar("C8 R", tonality=tonality)
@@ -358,7 +390,7 @@ def test_gate_then_stretch_retains_exact_long_durations():
     assert [note.duration for note in result] == [Fraction(2)] * 4
     assert result.span() == Fraction(8)
     assert result.to_lilypond() == (
-        r"c\breve dis\breve c\breve ais\breve"
+        r"c\breve ees\breve c\breve bes\breve"
     )
 
 
