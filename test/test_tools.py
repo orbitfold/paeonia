@@ -5,24 +5,18 @@ import pytest
 
 from paeonia import Bar, Note, Tonality, Voice
 from paeonia.tools import (
-    degree_feedback,
     euclidean_rhythm,
     fill_bars,
     gate_notes,
-    interval_feedback,
     note_repeat,
     pulses_to_durations,
-    rule30_rhythm,
 )
 
 
 def test_rhythm_transformations_are_tools_not_bar_methods():
     for name in (
-            "degree_feedback",
             "euclidean_rhythm",
-            "interval_feedback",
             "pulses_to_durations",
-            "rule30_rhythm",
     ):
         assert not hasattr(Bar, name)
 
@@ -253,178 +247,6 @@ def test_gate_notes_rejects_non_boolean_extension_option():
             [True],
             extend_previous="yes",
         ))
-
-
-def test_degree_feedback_applies_bounded_nonlinear_tonal_map():
-    tonality = Tonality("C")
-    bar = Bar("C D E", tonality=tonality)
-
-    first = degree_feedback(bar, register_size=7)
-    second = degree_feedback(first, register_size=7)
-
-    assert first == Bar("F E B", tonality=tonality)
-    assert second == Bar("E D G", tonality=tonality)
-    assert bar == Bar("C D E", tonality=tonality)
-
-
-def test_degree_feedback_preserves_chromatic_alterations_and_event_metadata():
-    tonality = Tonality("C")
-    chord = Note.parse("<C# D>8").with_velocity(0.4).with_ties(
-        tie_in=True,
-        tie_out=True,
-    )
-    rest = Note.rest(Fraction(1, 8)).with_velocity(0.2)
-    note = Note.parse("E8").with_velocity(0.7)
-    bar = Bar([chord, rest, note], tonality=tonality)
-
-    result = degree_feedback(bar, register_size=7)
-
-    assert [tuple(str(pitch) for pitch in event.pitches) for event in result] == [
-        ("F#4", "E4"),
-        (),
-        ("B4",),
-    ]
-    assert [event.duration for event in result] == [
-        event.duration for event in bar
-    ]
-    assert [event.velocity for event in result] == [0.4, 0.2, 0.7]
-    assert result[0].tie_in is True
-    assert result[0].tie_out is True
-    assert result.tonality is tonality
-
-
-def test_degree_feedback_accepts_explicit_tonality_without_attaching_it():
-    tonality = Tonality("C")
-    bar = Bar("C D E")
-
-    result = degree_feedback(bar, tonality=tonality, register_size=7)
-
-    assert result == Bar("F E B")
-    assert result.tonality is None
-
-
-def test_rule30_rhythm_evolves_a_cyclic_sounding_mask():
-    tonality = Tonality("C")
-    seed = Bar("R R C R R", tonality=tonality)
-
-    first = rule30_rhythm(seed)
-    second = rule30_rhythm(first)
-
-    assert [not note.is_rest() for note in first] == [
-        False, True, True, True, False,
-    ]
-    assert [not note.is_rest() for note in second] == [
-        True, True, False, False, True,
-    ]
-    assert all(
-        note.midi_pitches == (60,)
-        for note in [*first, *second]
-        if not note.is_rest()
-    )
-    assert first.tonality is tonality
-    assert second.tonality is tonality
-    assert seed == Bar("R R C R R", tonality=tonality)
-
-
-def test_rule30_rhythm_retains_cell_metadata_and_clears_ties():
-    sounding = Note.parse("<C Eb>8").with_velocity(0.4).with_ties(
-        tie_in=True,
-        tie_out=True,
-    )
-    rests = [
-        Note.rest(Fraction(1, 16)).with_velocity(0.1),
-        Note.rest(Fraction(1, 4)).with_velocity(0.2),
-    ]
-    bar = Bar([sounding, *rests])
-
-    result = rule30_rhythm(bar)
-
-    assert [note.duration for note in result] == [
-        Fraction(1, 8), Fraction(1, 16), Fraction(1, 4),
-    ]
-    assert [note.velocity for note in result] == [0.4, 0.1, 0.2]
-    assert all(not note.tie_in and not note.tie_out for note in result)
-    assert all(
-        note.pitches == sounding.pitches
-        for note in result
-        if not note.is_rest()
-    )
-
-
-def test_interval_feedback_evolves_cyclic_successive_degree_intervals():
-    tonality = Tonality("C")
-    bar = Bar("C D E G", tonality=tonality)
-
-    result = interval_feedback(bar)
-
-    assert result == Bar("C F A D'", tonality=tonality)
-    assert bar == Bar("C D E G", tonality=tonality)
-
-
-def test_interval_feedback_preserves_alterations_boundaries_and_metadata():
-    tonality = Tonality("C")
-    chord = Note.parse("<C# D>8").with_velocity(0.4).with_ties(
-        tie_out=True,
-    )
-    rest = Note.rest(Fraction(1, 8)).with_velocity(0.2)
-    tail = Note.parse("<Eb G>8").with_velocity(0.7)
-    bar = Bar([chord, rest, tail], tonality=tonality)
-
-    result = interval_feedback(bar)
-
-    assert [tuple(str(pitch) for pitch in event.pitches) for event in result] == [
-        ("C#4", "F4"),
-        (),
-        ("Ab4", "D5"),
-    ]
-    assert [event.duration for event in result] == [
-        event.duration for event in bar
-    ]
-    assert [event.velocity for event in result] == [0.4, 0.2, 0.7]
-    assert result[0].tie_out is True
-    assert result.tonality is tonality
-
-
-@pytest.mark.parametrize(
-    ("function", "kwargs", "message"),
-    [
-        (degree_feedback, {}, "requires an explicit or bar tonality"),
-        (interval_feedback, {}, "requires an explicit or bar tonality"),
-        (degree_feedback, {"register_size": 0}, "register_size must be positive"),
-        (interval_feedback, {"modulus": 1}, "modulus must be greater"),
-    ],
-)
-def test_pitch_evolution_tools_validate_tonal_context_and_bounds(
-        function,
-        kwargs,
-        message,
-):
-    with pytest.raises(ValueError, match=message):
-        function(Bar("C D"), **kwargs)
-
-
-@pytest.mark.parametrize(
-    "function",
-    [degree_feedback, interval_feedback, rule30_rhythm],
-)
-def test_evolution_tools_reject_non_bars(function):
-    with pytest.raises(TypeError, match="bar must be a Bar"):
-        function(object())
-
-
-@pytest.mark.parametrize(
-    "function",
-    [degree_feedback, interval_feedback, rule30_rhythm],
-)
-def test_evolution_tools_copy_empty_bars(function):
-    tonality = Tonality("C")
-    bar = Bar(tonality=tonality)
-
-    result = function(bar)
-
-    assert result == bar
-    assert result is not bar
-    assert result.tonality is tonality
 
 
 def test_fill_bars_accepts_voice_and_preserves_spans_and_tonalities():
