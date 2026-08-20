@@ -60,7 +60,7 @@ def test_note_repeat_is_lazy_and_preserves_original_events():
         actual is expected
         for actual, expected in zip(emitted, [a, a, b, a, a, b])
     )
-    assert bar.notes == [a, b]
+    assert bar.notes == (a, b)
 
 
 @pytest.mark.parametrize(
@@ -163,7 +163,7 @@ def test_gate_notes_preserves_metadata_and_does_not_mutate_source():
     assert emitted[1].velocity == muted.velocity
     assert not emitted[1].tie_in
     assert not emitted[1].tie_out
-    assert bar.notes == [active, muted]
+    assert bar.notes == (active, muted)
     assert not muted.is_rest()
 
 
@@ -278,7 +278,7 @@ def test_gate_notes_can_extend_previous_note_over_muted_events():
     assert all(note.pitches == active.pitches for note in emitted)
     assert all(note.duration == Fraction(7, 16) for note in emitted)
     assert all(note.velocity == active.velocity for note in emitted)
-    assert bar.notes == [active, first_muted, second_muted]
+    assert bar.notes == (active, first_muted, second_muted)
 
 
 def test_gate_notes_leaves_leading_muted_events_as_rests():
@@ -345,8 +345,8 @@ def test_fill_bars_accepts_voice_and_preserves_spans_and_tonalities():
     assert result.bars[1].tonality is None
     assert result.tonality_at(0) is c_major
     assert result.tonality_at(1) is g_major
-    assert result.bars[0].notes == notes[:2]
-    assert result.bars[1].notes == notes[2:]
+    assert result.bars[0].notes == tuple(notes[:2])
+    assert result.bars[1].notes == tuple(notes[2:])
     assert result.bars[0][0] is notes[0]
 
 

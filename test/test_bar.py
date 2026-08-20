@@ -42,6 +42,80 @@ def test_bars_of_different_lengths_are_not_equal():
     assert Bar("C C") != Bar("C")
 
 
+def test_tuple_indices_select_events_with_duplicates_into_new_bar():
+    tonality = Tonality("C", "minor")
+    bar = Bar("C D Eb F", tonality=tonality)
+
+    selected = bar[0, 0, 2]
+
+    assert selected == Bar("C C Eb", tonality=tonality)
+    assert selected is not bar
+    assert selected.notes == (bar[0], bar[0], bar[2])
+    assert selected.tonality is tonality
+
+
+def test_bar_events_and_tonality_cannot_be_assigned():
+    bar = Bar("C D", tonality=Tonality("C"))
+
+    with pytest.raises(TypeError, match="item assignment"):
+        bar[0] = Note.parse("E")
+    with pytest.raises(TypeError, match="item assignment"):
+        bar.notes[0] = Note.parse("E")
+    with pytest.raises(AttributeError):
+        bar.notes = (Note.parse("E"),)
+    with pytest.raises(AttributeError):
+        bar.tonality = Tonality("D")
+
+
+def test_with_events_returns_replaced_copy_without_mutating_source():
+    tonality = Tonality("C")
+    first = Bar("C D E F G", tonality=tonality)
+    second = Bar("A B")
+    original = copy(first)
+
+    result = first.with_events((0, 2, 3), second[0, 0, 1])
+
+    assert result.notes == (
+        second[0],
+        first[1],
+        second[0],
+        second[1],
+        first[4],
+    )
+    assert result.tonality is tonality
+    assert result is not first
+    assert first == original
+
+
+def test_with_events_validates_without_mutating_source():
+    bar = Bar("C D E")
+    original = copy(bar)
+
+    with pytest.raises(ValueError, match="replacement count must match"):
+        bar.with_events((0, 2), Bar("F"))
+    assert bar == original
+
+    with pytest.raises(IndexError):
+        bar.with_events((0, 10), Bar("F G"))
+    assert bar == original
+
+    with pytest.raises(TypeError, match="every replacement event"):
+        bar.with_events((0, 2), [Note.parse("F"), object()])
+    assert bar == original
+
+
+def test_add_note_returns_new_bar_without_mutating_source():
+    tonality = Tonality("C")
+    bar = Bar("C D", tonality=tonality)
+    original = copy(bar)
+
+    result = bar.add_note(Note.parse("E"))
+
+    assert result == Bar("C D E", tonality=tonality)
+    assert result is not bar
+    assert bar == original
+
+
 def test_bar_plus_note_preserves_left_tonality():
     tonality = Tonality("C")
     bar = Bar("C", tonality=tonality)
@@ -102,7 +176,7 @@ def test_interleave_preserves_common_tonality_metadata_and_sources():
 
     result = first.interleave(second, [1, 2])
 
-    assert result.notes == [first_note, second_note, second_note]
+    assert result.notes == (first_note, second_note, second_note)
     assert all(
         actual is expected
         for actual, expected in zip(
@@ -527,7 +601,7 @@ def test_rotate_preserves_tonality_note_metadata_and_source():
     result = bar.rotate(1)
 
     assert result.tonality is tonality
-    assert result.notes == [notes[2], notes[0], notes[1]]
+    assert result.notes == (notes[2], notes[0], notes[1])
     assert all(
         actual is expected
         for actual, expected in zip(result.notes, [notes[2], notes[0], notes[1]])
@@ -805,7 +879,7 @@ def test_note_repeat_returns_new_bar_and_preserves_metadata():
 
     result = bar.note_repeat(iter([2]))
 
-    assert result.notes == [chord, chord, rest, rest]
+    assert result.notes == (chord, chord, rest, rest)
     assert all(
         actual is expected
         for actual, expected in zip(result, [chord, chord, rest, rest])

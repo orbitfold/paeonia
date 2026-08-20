@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from .voice import Voice
 
 class Bar:
+    __slots__ = ("_notes", "_tonality")
+
     def __init__(
             self,
             notes=None,
@@ -29,8 +31,18 @@ class Bar:
         if not all(isinstance(note, Note) for note in parsed):
             raise TypeError("Every bar element must be a note")
 
-        self.notes = parsed
-        self.tonality = tonality
+        object.__setattr__(self, "_notes", tuple(parsed))
+        object.__setattr__(self, "_tonality", tonality)
+
+    @property
+    def notes(self) -> tuple[Note, ...]:
+        """Return the immutable event sequence."""
+        return self._notes
+
+    @property
+    def tonality(self) -> Tonality | None:
+        """Return the bar's immutable tonal context."""
+        return self._tonality
 
     def __copy__(self) -> "Bar":
         return Bar(
@@ -205,15 +217,71 @@ class Bar:
                 notes=self.notes[i],
                 tonality=self.tonality,
             )
-        if isinstance(i, list):
+        if isinstance(i, (list, tuple)):
             return Bar(
                 notes=[self.notes[index] for index in i],
                 tonality=self.tonality,
             )
         return self.notes[i]
 
-    def __setitem__(self, i, note):
-        self.notes[i] = note
+    @staticmethod
+    def _replacement_events(value) -> list[Note]:
+        """Materialize and validate events used by functional replacement."""
+        source = value.notes if isinstance(value, Bar) else value
+        try:
+            replacements = list(source)
+        except TypeError as exc:
+            raise TypeError(
+                "multi-event replacement must be a Bar or iterable of Notes"
+            ) from exc
+        if not all(isinstance(note, Note) for note in replacements):
+            raise TypeError("every replacement event must be a Note")
+        return replacements
+
+    def with_events(
+            self,
+            indices: Iterable[int],
+            replacements: Iterable[Note] | "Bar",
+    ) -> "Bar":
+        """Return a copy with selected events replaced.
+
+        This is the non-mutating counterpart to multi-index assignment. The
+        number of replacements must equal the number of indices. Tonality and
+        every event outside the selected positions are preserved.
+
+        Parameters
+        ----------
+        indices : Iterable[int]
+            Event positions to replace, including negative indices.
+        replacements : Iterable[Note] | Bar
+            Replacement events in corresponding order.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the requested replacements.
+        """
+        selected_indices = tuple(indices)
+        if not all(
+                isinstance(index, int) and not isinstance(index, bool)
+                for index in selected_indices
+        ):
+            raise TypeError("bar indices must be integers")
+
+        result = list(self.notes)
+        for index in selected_indices:
+            result[index]
+        replacement_events = self._replacement_events(replacements)
+        if len(replacement_events) != len(selected_indices):
+            raise ValueError(
+                "replacement count must match the number of indices"
+            )
+        for index, replacement in zip(
+                selected_indices,
+                replacement_events,
+        ):
+            result[index] = replacement
+        return Bar(result, tonality=self.tonality)
 
     def __len__(self):
         return len(self.notes)
@@ -577,15 +645,25 @@ class Bar:
             default_tonality=self.tonality,
         )
 
-    def add_note(self, note):
-        """Append a new note to the bar.
+    def add_note(self, note: Note) -> "Bar":
+        """Return a new bar with one event appended.
 
         Parameters
         ----------
-        note: Note
-           A note to add
+        note : Note
+            Event to append.
+
+        Returns
+        -------
+        Bar
+            A new bar containing the existing events followed by ``note``.
         """
-        self.notes.append(note)
+        if not isinstance(note, Note):
+            raise TypeError("note must be a Note")
+        return Bar(
+            notes=(*self.notes, note),
+            tonality=self.tonality,
+        )
 
     def pitches(self):
         """Returns all pitches in this bar as a single flat list.
