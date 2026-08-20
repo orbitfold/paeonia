@@ -42,6 +42,22 @@ def test_bars_of_different_lengths_are_not_equal():
     assert Bar("C C") != Bar("C")
 
 
+def test_sounding_and_rest_indices_partition_event_positions():
+    bar = Bar("R8 C <E G> R4 D R")
+
+    assert bar.sounding_indices() == [1, 2, 4]
+    assert bar.rest_indices() == [0, 3, 5]
+
+
+def test_sounding_and_rest_indices_handle_empty_and_uniform_bars():
+    assert Bar().sounding_indices() == []
+    assert Bar().rest_indices() == []
+    assert Bar("C D E").sounding_indices() == [0, 1, 2]
+    assert Bar("C D E").rest_indices() == []
+    assert Bar("R R").sounding_indices() == []
+    assert Bar("R R").rest_indices() == [0, 1]
+
+
 def test_tuple_indices_select_events_with_duplicates_into_new_bar():
     tonality = Tonality("C", "minor")
     bar = Bar("C D Eb F", tonality=tonality)

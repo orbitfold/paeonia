@@ -286,6 +286,27 @@ class Bar:
     def __len__(self):
         return len(self.notes)
 
+    def sounding_indices(self) -> list[int]:
+        """Return the indices of all non-rest events.
+
+        Single notes and chords are both sounding events. The returned list
+        follows event order and is empty when the bar contains no sounding
+        events.
+        """
+        return [
+            index
+            for index, note in enumerate(self.notes)
+            if not note.is_rest()
+        ]
+
+    def rest_indices(self) -> list[int]:
+        """Return the indices of all rest events in event order."""
+        return [
+            index
+            for index, note in enumerate(self.notes)
+            if note.is_rest()
+        ]
+
     def __str__(self):
         return self.to_paeonia()
 
