@@ -534,12 +534,11 @@ class Bar:
         """Repeat events according to a cycling count pattern.
 
         This is the finite counterpart of :func:`paeonia.tools.note_repeat`.
-        Events and counts advance together. Pairing consumes at least every
-        source event once and at least as many event/count pairs as the sum of
-        the repeat pattern. The counts cycle when more pairs are needed than
-        the pattern contains, and the bar cycles when more pairs are needed
-        than it contains events. The source bar is unchanged and its tonality
-        and event metadata are preserved.
+        Events and counts advance together. If the count pattern is shorter
+        than the bar, the counts cycle; if it is longer, the bar's events
+        cycle. Pairing stops after the longer input has been consumed once.
+        The source bar is unchanged and its tonality and event metadata are
+        preserved.
 
         Parameters
         ----------
@@ -571,7 +570,7 @@ class Bar:
         if not all(count > 0 for count in repeat_pattern):
             raise ValueError("repeat counts must be positive")
 
-        frame_count = max(len(self), sum(repeat_pattern))
+        frame_count = max(len(self), len(repeat_pattern))
         return Bar(
             note_repeat(
                 self,

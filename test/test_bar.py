@@ -873,7 +873,7 @@ def test_note_repeat_cycles_a_shorter_repeat_pattern():
 
     result = bar.note_repeat([2, 3, 1])
 
-    assert result == Bar("C C D D D E F F G G G C")
+    assert result == Bar("C C D D D E F F G G G")
 
 
 def test_note_repeat_cycles_a_shorter_bar():
@@ -881,17 +881,15 @@ def test_note_repeat_cycles_a_shorter_bar():
 
     result = bar.note_repeat([1, 2, 3])
 
-    assert result == Bar("C D D C C C D C C D D D")
+    assert result == Bar("C D D C C C")
 
 
-def test_note_repeat_cycles_bar_when_repeat_total_exceeds_event_count():
+def test_note_repeat_applies_equal_length_pattern_exactly_once():
     bar = Bar("C8 Eb D Bb, Eb' D")
 
     result = bar.note_repeat([2, 1, 1, 2, 1, 1])
 
-    assert result == Bar(
-        "C8 C Eb D Bb, Bb Eb' D C C Eb"
-    )
+    assert result == Bar("C8 C Eb D Bb, Bb Eb' D")
 
 
 def test_note_repeat_returns_new_bar_and_preserves_metadata():
