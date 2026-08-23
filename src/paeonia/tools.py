@@ -73,7 +73,10 @@ def note_repeat(
     repeat_pattern = tuple(repeats)
     if not repeat_pattern:
         raise ValueError("repeats must contain at least one count")
-    if not all(isinstance(count, int) for count in repeat_pattern):
+    if not all(
+            isinstance(count, int) and not isinstance(count, bool)
+            for count in repeat_pattern
+    ):
         raise TypeError("repeat counts must be integers")
     if not all(count > 0 for count in repeat_pattern):
         raise ValueError("repeat counts must be positive")

@@ -84,6 +84,8 @@ def test_note_repeat_rejects_inputs_that_cannot_produce_an_endless_stream(
 def test_note_repeat_rejects_non_integer_counts():
     with pytest.raises(TypeError, match="repeat counts must be integers"):
         next(note_repeat(Bar("C"), [1.5]))
+    with pytest.raises(TypeError, match="repeat counts must be integers"):
+        next(note_repeat(Bar("C"), [True]))
 
 
 def test_note_repeat_can_consume_a_finite_number_of_pairs():

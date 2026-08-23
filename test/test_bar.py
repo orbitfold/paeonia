@@ -873,7 +873,7 @@ def test_note_repeat_cycles_a_shorter_repeat_pattern():
 
     result = bar.note_repeat([2, 3, 1])
 
-    assert result == Bar("C C D D D E F F G G G")
+    assert result == Bar("C C D D D E F F G G G C")
 
 
 def test_note_repeat_cycles_a_shorter_bar():
@@ -881,7 +881,17 @@ def test_note_repeat_cycles_a_shorter_bar():
 
     result = bar.note_repeat([1, 2, 3])
 
-    assert result == Bar("C D D C C C")
+    assert result == Bar("C D D C C C D C C D D D")
+
+
+def test_note_repeat_cycles_bar_when_repeat_total_exceeds_event_count():
+    bar = Bar("C8 Eb D Bb, Eb' D")
+
+    result = bar.note_repeat([2, 1, 1, 2, 1, 1])
+
+    assert result == Bar(
+        "C8 C Eb D Bb, Bb Eb' D C C Eb"
+    )
 
 
 def test_note_repeat_returns_new_bar_and_preserves_metadata():
@@ -912,6 +922,7 @@ def test_note_repeat_returns_new_bar_and_preserves_metadata():
         (Bar("C"), [], ValueError, "repeats must contain"),
         (Bar("C"), [0], ValueError, "repeat counts must be positive"),
         (Bar("C"), [1.5], TypeError, "repeat counts must be integers"),
+        (Bar("C"), [True], TypeError, "repeat counts must be integers"),
     ],
 )
 def test_bar_note_repeat_validates_inputs(bar, repeats, exception, message):
