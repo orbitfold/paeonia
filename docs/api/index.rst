@@ -8,5 +8,6 @@ and renderer functions live in their dedicated modules.
    :maxdepth: 2
 
    model/index
+   analysis
    tools
    rendering

@@ -5,12 +5,29 @@ from __future__ import annotations
 from collections.abc import Collection, Iterable, Mapping, MutableSequence
 from copy import copy
 from dataclasses import replace
+from fractions import Fraction
 from typing import overload
 
+from .analysis import (
+    BassMotion,
+    ChordCandidate,
+    DensityPoint,
+    DoublingSnapshot,
+    HarmonicChange,
+    HarmonicContext,
+    IntervalSnapshot,
+    PitchClassSet,
+    RegisterAnalysis,
+    ScaleDegreeSnapshot,
+    Verticality,
+    VoiceLeadingAnalysis,
+)
 from .bar import Bar
 from .staff import Staff, VALID_CLEFS
 from .tonality import Tonality, TonalityPlan
 from .voice import Voice
+
+_DEFAULT_DISSONANT_CLASSES = frozenset({1, 2, 6})
 
 
 def _normalize_plan(
@@ -580,6 +597,287 @@ class Score:
                 voice=transformed_voice,
             )
         return result
+
+    def verticalities(
+            self,
+            bar_index: int,
+            *,
+            staves: Collection[str] | None = None,
+    ) -> tuple[Verticality, ...]:
+        """Return exact time frames containing all pitches sounding in a bar.
+
+        Boundaries are derived from every event onset and ending across the
+        selected aligned staves. Rests contribute time but not pitch, sustained
+        notes remain active, and staff insertion order is preserved.
+        """
+        from .analysis import verticalities
+
+        return verticalities(self, bar_index, staves=staves)
+
+    def sonority_at(
+            self,
+            bar_index: int,
+            offset: int | Fraction,
+            *,
+            staves: Collection[str] | None = None,
+    ) -> Verticality:
+        """Return the vertical sonority sounding at a bar-relative offset."""
+        from .analysis import sonority_at
+
+        return sonority_at(self, bar_index, offset, staves=staves)
+
+    def pitch_class_set(
+            self,
+            bar_index: int,
+            *,
+            offset: int | Fraction | None = None,
+            staves: Collection[str] | None = None,
+    ) -> PitchClassSet:
+        """Return both written and MIDI pitch-class sets.
+
+        With no ``offset``, the result is the union of the complete bar. Pass
+        an offset for the set sounding at one exact point.
+        """
+        from .analysis import score_pitch_class_set
+
+        return score_pitch_class_set(
+            self,
+            bar_index,
+            offset=offset,
+            staves=staves,
+        )
+
+    def interval_class_vector(
+            self,
+            bar_index: int,
+            *,
+            offset: int | Fraction | None = None,
+            staves: Collection[str] | None = None,
+    ) -> tuple[int, int, int, int, int, int]:
+        """Return the interval-class vector of a pointwise or whole-bar set."""
+        from .analysis import interval_class_vector
+
+        return interval_class_vector(
+            self.pitch_class_set(
+                bar_index,
+                offset=offset,
+                staves=staves,
+            ).midi
+        )
+
+    def prime_form(
+            self,
+            bar_index: int,
+            *,
+            offset: int | Fraction | None = None,
+            staves: Collection[str] | None = None,
+    ) -> tuple[int, ...]:
+        """Return a transposition/inversion-normalized pitch-class form."""
+        from .analysis import prime_form
+
+        return prime_form(
+            self.pitch_class_set(
+                bar_index,
+                offset=offset,
+                staves=staves,
+            ).midi
+        )
+
+    def scale_degrees(
+            self,
+            bar_index: int,
+            *,
+            tonality: Tonality | None = None,
+            staves: Collection[str] | None = None,
+    ) -> tuple[ScaleDegreeSnapshot, ...]:
+        """Analyze every pitch as a time-aware scale position.
+
+        When ``tonality`` is omitted, all selected staves must resolve to one
+        effective tonality at this bar.
+        """
+        from .analysis import score_scale_degrees
+
+        return score_scale_degrees(
+            self,
+            bar_index,
+            tonality=tonality,
+            staves=staves,
+        )
+
+    def chord_candidates(
+            self,
+            bar_index: int,
+            *,
+            offset: int | Fraction = 0,
+            tonality: Tonality | None = None,
+            staves: Collection[str] | None = None,
+            limit: int = 5,
+    ) -> tuple[ChordCandidate, ...]:
+        """Rank common chord interpretations at an exact offset."""
+        from .analysis import score_chord_candidates
+
+        return score_chord_candidates(
+            self,
+            bar_index,
+            offset=offset,
+            tonality=tonality,
+            staves=staves,
+            limit=limit,
+        )
+
+    def roman_numerals(
+            self,
+            bar_index: int,
+            *,
+            tonality: Tonality | None = None,
+            staves: Collection[str] | None = None,
+    ) -> tuple[HarmonicChange, ...]:
+        """Return contiguous Roman-numeral assignments within a bar."""
+        from .analysis import score_roman_numerals
+
+        return score_roman_numerals(
+            self,
+            bar_index,
+            tonality=tonality,
+            staves=staves,
+        )
+
+    def harmonic_context(
+            self,
+            bar_index: int,
+            *,
+            tonality: Tonality | None = None,
+            staves: Collection[str] | None = None,
+    ) -> HarmonicContext:
+        """Return duration-weighted harmony, changes, and non-chord tones."""
+        from .analysis import harmonic_context
+
+        return harmonic_context(
+            self,
+            bar_index,
+            tonality=tonality,
+            staves=staves,
+        )
+
+    def harmonic_rhythm(
+            self,
+            bar_index: int,
+            *,
+            tonality: Tonality | None = None,
+            staves: Collection[str] | None = None,
+    ) -> tuple[HarmonicChange, ...]:
+        """Return each contiguous chord assignment and exact duration."""
+        from .analysis import score_harmonic_rhythm
+
+        return score_harmonic_rhythm(
+            self,
+            bar_index,
+            tonality=tonality,
+            staves=staves,
+        )
+
+    def interval_matrix(
+            self,
+            bar_index: int,
+            *,
+            staves: Collection[str] | None = None,
+            dissonant_classes: Collection[int] = _DEFAULT_DISSONANT_CLASSES,
+    ) -> tuple[IntervalSnapshot, ...]:
+        """Return all cross-staff pitch intervals at every vertical change."""
+        from .analysis import score_interval_matrix
+
+        return score_interval_matrix(
+            self,
+            bar_index,
+            staves=staves,
+            dissonant_classes=dissonant_classes,
+        )
+
+    def dissonances(
+            self,
+            bar_index: int,
+            *,
+            staves: Collection[str] | None = None,
+            dissonant_classes: Collection[int] = _DEFAULT_DISSONANT_CLASSES,
+    ) -> tuple[IntervalSnapshot, ...]:
+        """Return cross-staff intervals in configurable dissonant classes."""
+        from .analysis import score_dissonances
+
+        return score_dissonances(
+            self,
+            bar_index,
+            staves=staves,
+            dissonant_classes=dissonant_classes,
+        )
+
+    def doublings(
+            self,
+            bar_index: int,
+            *,
+            staves: Collection[str] | None = None,
+    ) -> tuple[DoublingSnapshot, ...]:
+        """Return duplicated MIDI pitch classes at each vertical change."""
+        from .analysis import score_doublings
+
+        return score_doublings(self, bar_index, staves=staves)
+
+    def density(
+            self,
+            bar_index: int,
+            *,
+            staves: Collection[str] | None = None,
+    ) -> tuple[DensityPoint, ...]:
+        """Return pitch and active-staff density throughout a bar."""
+        from .analysis import score_density
+
+        return score_density(self, bar_index, staves=staves)
+
+    def register_analysis(
+            self,
+            bar_index: int,
+            *,
+            staves: Collection[str] | None = None,
+    ) -> RegisterAnalysis:
+        """Return bass, soprano, ambitus, spacing, crossings, and overlaps."""
+        from .analysis import score_register_analysis
+
+        return score_register_analysis(self, bar_index, staves=staves)
+
+    def bass_motion(
+            self,
+            bar_index: int,
+            *,
+            staves: Collection[str] | None = None,
+    ) -> tuple[BassMotion, ...]:
+        """Return motion between successive sounding bass pitches."""
+        from .analysis import score_bass_motion
+
+        return score_bass_motion(self, bar_index, staves=staves)
+
+    def voice_leading_to(
+            self,
+            bar_index: int,
+            next_bar_index: int | None = None,
+            *,
+            staves: Collection[str] | None = None,
+            leap_threshold: int = 5,
+    ) -> VoiceLeadingAnalysis:
+        """Analyze voice leading from a bar to another bar.
+
+        ``next_bar_index`` defaults to the following bar. Pitches are matched
+        by minimum motion within each staff; results include common tones,
+        total motion, contrary motion, parallel perfects, and leaps.
+        """
+        from .analysis import voice_leading_to
+
+        target = bar_index + 1 if next_bar_index is None else next_bar_index
+        return voice_leading_to(
+            self,
+            bar_index,
+            target,
+            staves=staves,
+            leap_threshold=leap_threshold,
+        )
 
     def validate_alignment(self) -> None:
         """Require all voices to have identical bar counts and spans.

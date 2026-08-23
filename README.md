@@ -136,6 +136,36 @@ Use `score.apply_tonality(target)` to transform every staff into one target, or
 `score.apply_tonality_plan({0: c_major, 2: d_major})` to transform all bars and
 store synchronized target changes. Both operations return a new score.
 
+## Vertical and harmonic analysis
+
+Score analysis respects the actual rhythm of every aligned staff. It divides a
+bar at each onset and release, retains sustained notes and written accidentals,
+and uses exact `Fraction` offsets:
+
+```python
+from fractions import Fraction
+
+frames = score.verticalities(0)
+sonority = score.sonority_at(0, Fraction(1, 2))
+context = score.harmonic_context(0)
+
+print(context.primary.symbol, context.primary.roman_numeral)
+for change in context.changes:
+    print(change.offset, change.duration, change.roman_numeral)
+```
+
+Objective methods include `pitch_class_set()`, `interval_class_vector()`,
+`prime_form()`, `interval_matrix()`, `dissonances()`, `doublings()`,
+`density()`, `register_analysis()`, and `bass_motion()`. Functional methods
+include `scale_degrees()`, `chord_candidates()`, `roman_numerals()`,
+`harmonic_context()`, and `harmonic_rhythm()`. Use
+`score.voice_leading_to(0)` to compare the final sonority of bar 0 with the
+first sonority of bar 1.
+
+Functional analysis inherits the effective tonality. If selected staves have
+conflicting tonalities, pass `tonality=...` explicitly or restrict the analysis
+with `staves=[...]`.
+
 ## Workbench
 
 Run the module to copy the bundled workbench into the current directory and
