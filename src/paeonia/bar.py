@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from copy import copy
 from collections.abc import Callable, Iterable, Sequence
 from itertools import cycle, islice
