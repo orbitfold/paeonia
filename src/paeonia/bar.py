@@ -309,6 +309,27 @@ class Bar:
             if note.is_rest()
         ]
 
+    def to_rest(self) -> "Bar":
+        """Return a single-rest replacement with the same total duration.
+
+        The returned bar contains one untied rest spanning the complete source
+        bar and retains the source bar's tonality. The source bar and its
+        events are unchanged. Because a zero-duration :class:`Note` is invalid,
+        an empty source bar produces a new empty bar instead.
+
+        Returns
+        -------
+        Bar
+            A new bar containing one full-span rest, or no events when this
+            bar is empty.
+        """
+        if not self.notes:
+            return Bar(tonality=self.tonality)
+        return Bar(
+            [Note.rest(Fraction(self.span()))],
+            tonality=self.tonality,
+        )
+
     def __str__(self):
         return self.to_paeonia()
 

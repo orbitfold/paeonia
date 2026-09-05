@@ -58,6 +58,31 @@ def test_sounding_and_rest_indices_handle_empty_and_uniform_bars():
     assert Bar("R R").rest_indices() == [0, 1]
 
 
+def test_to_rest_replaces_all_events_with_one_full_span_rest():
+    tonality = Tonality("Eb", "minor")
+    source = Bar("C8 <Eb G>4 R16 D16", tonality=tonality)
+
+    result = source.to_rest()
+
+    assert result == Bar(
+        [Note.rest(Fraction(1, 2))],
+        tonality=tonality,
+    )
+    assert result is not source
+    assert source == Bar("C8 <Eb G>4 R16 D16", tonality=tonality)
+
+
+def test_to_rest_returns_new_empty_bar_for_empty_source():
+    tonality = Tonality("C", "minor")
+    source = Bar(tonality=tonality)
+
+    result = source.to_rest()
+
+    assert result == source
+    assert result is not source
+    assert result.tonality is tonality
+
+
 def test_tuple_indices_select_events_with_duplicates_into_new_bar():
     tonality = Tonality("C", "minor")
     bar = Bar("C D Eb F", tonality=tonality)
