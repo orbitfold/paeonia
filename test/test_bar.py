@@ -83,6 +83,93 @@ def test_to_rest_returns_new_empty_bar_for_empty_source():
     assert result.tonality is tonality
 
 
+def test_merge_adjacent_merges_every_run_and_preserves_outer_metadata():
+    tonality = Tonality("C", "minor")
+    first = Note.parse("C8").with_velocity(0.3).with_ties(
+        tie_in=True,
+        tie_out=True,
+    )
+    second = Note.parse("C4").with_velocity(0.9).with_ties(
+        tie_in=True,
+        tie_out=False,
+    )
+    third = Note.parse("D16").with_velocity(0.4)
+    fourth = Note.parse("D8").with_velocity(0.8).with_ties(
+        tie_out=True,
+    )
+    source = Bar([first, second, third, fourth], tonality=tonality)
+
+    result = source.merge_adjacent()
+
+    assert result.notes[0] == Note(
+        pitches=first.pitches,
+        duration=Fraction(3, 8),
+        velocity=0.3,
+        tie_in=True,
+        tie_out=False,
+    )
+    assert result.notes[1] == Note(
+        pitches=third.pitches,
+        duration=Fraction(3, 16),
+        velocity=0.4,
+        tie_out=True,
+    )
+    assert result.tonality is tonality
+    assert result is not source
+    assert source.notes == (first, second, third, fourth)
+
+
+def test_merge_adjacent_accepts_reordered_chords():
+    first = Note(
+        pitches=tuple(Pitch.parse(name) for name in ("C4", "E4", "G4")),
+        duration=Fraction(1, 8),
+    )
+    second = Note(
+        pitches=tuple(Pitch.parse(name) for name in ("G4", "C4", "E4")),
+        duration=Fraction(1, 4),
+    )
+    source = Bar([Note.parse("D8"), first, second])
+
+    result = source.merge_adjacent()
+
+    assert result.notes == (
+        source.notes[0],
+        first.with_duration(Fraction(3, 8)),
+    )
+    assert result.notes[1].pitches == first.pitches
+
+
+def test_merge_adjacent_combines_rest_runs_but_not_surrounding_notes():
+    first = Note.rest(Fraction(1, 8)).with_velocity(0.2)
+    second = Note.rest(Fraction(1, 4)).with_velocity(0.9)
+
+    result = Bar([
+        Note.parse("C8"),
+        first,
+        second,
+        Note.parse("D8"),
+    ]).merge_adjacent()
+
+    assert result.notes == (
+        Note.parse("C8"),
+        Note.rest(Fraction(3, 8)).with_velocity(0.2),
+        Note.parse("D8"),
+    )
+
+
+def test_merge_adjacent_leaves_different_spellings_and_empty_bar_unchanged():
+    spelled = Bar("Eb8 D#")
+    empty = Bar(tonality=Tonality("C"))
+
+    spelled_result = spelled.merge_adjacent()
+    empty_result = empty.merge_adjacent()
+
+    assert spelled_result == spelled
+    assert spelled_result is not spelled
+    assert empty_result == empty
+    assert empty_result is not empty
+
+
 def test_tuple_indices_select_events_with_duplicates_into_new_bar():
     tonality = Tonality("C", "minor")
     bar = Bar("C D Eb F", tonality=tonality)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from copy import copy
 from collections.abc import Callable, Iterable, Sequence
 from itertools import cycle, islice
@@ -284,6 +285,42 @@ class Bar:
         ):
             result[index] = replacement
         return Bar(result, tonality=self.tonality)
+
+    def merge_adjacent(self) -> "Bar":
+        """Merge every consecutive run of structurally equal pitches.
+
+        Pitch comparison is order-independent for chords but preserves written
+        spelling, so reordered equal chords merge while enharmonic spellings
+        such as E-flat and D-sharp remain separate. Consecutive rests merge as
+        well because both have an empty pitch collection.
+
+        Each merged event keeps the first event's pitch order and velocity,
+        uses the first event's ``tie_in`` and the final event's ``tie_out``,
+        and receives the sum of all durations in the run. Unlike neighbors are
+        retained unchanged. The operation returns a new bar, preserves its
+        tonality, and does not quantize resulting durations.
+
+        Returns
+        -------
+        Bar
+            A new bar with every qualifying run replaced by one longer event.
+        """
+        merged: list[Note] = []
+        for note in self.notes:
+            if (
+                    merged
+                    and Counter(merged[-1].pitches) == Counter(note.pitches)
+            ):
+                first = merged[-1]
+                merged[-1] = first.with_duration(
+                    first.duration + note.duration
+                ).with_ties(
+                    tie_in=first.tie_in,
+                    tie_out=note.tie_out,
+                )
+            else:
+                merged.append(note)
+        return Bar(merged, tonality=self.tonality)
 
     def __len__(self):
         return len(self.notes)
