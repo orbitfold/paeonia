@@ -5,8 +5,16 @@ from types import ModuleType
 
 import pytest
 
-from paeonia import Bar, Note, Score, Staff, Tonality, Voice
+from paeonia import (
+    Bar,
+    Note,
+    Score,
+    Staff,
+    Tonality,
+    Voice,
+)
 from paeonia import playback
+from paeonia.annotations import AnalysisRenderOptions
 from paeonia.lilypond import (
     duration_to_lilypond,
     note_to_lilypond,
@@ -207,8 +215,8 @@ def test_score_bar_number_option_reaches_model_and_playback(monkeypatch):
     score["lead"] = Voice([Bar("C")])
     calls = []
 
-    def show_score(passed_score, *, bar_numbers):
-        calls.append((passed_score, bar_numbers))
+    def show_score(passed_score, *, bar_numbers, analysis):
+        calls.append((passed_score, bar_numbers, analysis))
 
     monkeypatch.setattr(playback, "show_score", show_score)
 
@@ -218,7 +226,10 @@ def test_score_bar_number_option_reaches_model_and_playback(monkeypatch):
     )
     assert score.show() is score
     assert score.show(bar_numbers=False) is score
-    assert calls == [(score, True), (score, False)]
+    assert calls == [
+        (score, True, False),
+        (score, False, False),
+    ]
 
 
 def test_score_bar_number_option_requires_boolean():
@@ -226,6 +237,49 @@ def test_score_bar_number_option_requires_boolean():
 
     with pytest.raises(TypeError, match="bar_numbers must be a boolean"):
         score_to_lilypond(score, bar_numbers="all")
+
+
+def test_analysis_uses_exact_skip_offsets_and_preserves_plain_rendering():
+    quarter = Fraction(1, 4)
+    score = Score(default_tonality=Tonality("C"))
+    score["soprano"] = Voice([Bar([
+        Note((Pitch.parse("C5"),), duration=quarter),
+        Note((Pitch.parse("D5"),), duration=quarter),
+        Note((Pitch.parse("E5"),), duration=Fraction(1, 2)),
+    ])])
+    score["alto"] = Voice([Bar([
+        Note((Pitch.parse("G4"),), duration=1),
+    ])])
+    score["tenor"] = Voice([Bar([
+        Note((Pitch.parse("E4"),), duration=1),
+    ])])
+    score["bass"] = Voice([Bar([
+        Note((Pitch.parse("C3"),), duration=1),
+    ])])
+
+    plain = score_to_lilypond(score)
+    rendered = score_to_lilypond(score, analysis=True)
+
+    assert "\\markup" not in plain
+    assert "Harmony: C · I" in rendered
+    assert "NCT: D5 (passing)" in rendered
+    assert "s1*1/4^\\markup" in rendered
+    assert rendered.count("NCT: D5 (passing)") == 1
+
+
+def test_score_analysis_option_reaches_playback(monkeypatch):
+    score = Score(default_tonality=Tonality("C"))
+    score["lead"] = Voice([Bar("C1")])
+    options = AnalysisRenderOptions(register_warnings=False)
+    calls = []
+
+    def show_score(passed_score, *, bar_numbers, analysis):
+        calls.append((passed_score, bar_numbers, analysis))
+
+    monkeypatch.setattr(playback, "show_score", show_score)
+
+    assert score.show(analysis=options) is score
+    assert calls == [(score, True, options)]
 
 
 def test_score_rendering_rejects_misalignment_before_output():

@@ -22,6 +22,7 @@ from .analysis import (
     Verticality,
     VoiceLeadingAnalysis,
 )
+from .annotations import AnalysisRenderOptions, ScoreAnnotation
 from .bar import Bar
 from .staff import Staff, VALID_CLEFS
 from .tonality import Tonality, TonalityPlan
@@ -926,17 +927,49 @@ class Score:
             allow_unaligned=allow_unaligned,
         )
 
-    def to_lilypond(self, *, bar_numbers: bool = True) -> str:
-        """Render the score, showing every bar number by default."""
+    def analysis_annotations(
+            self,
+            options: AnalysisRenderOptions | None = None,
+    ) -> tuple[ScoreAnnotation, ...]:
+        """Compute fresh renderer-independent annotations for this score.
+
+        The analysis is never cached on the score, so editing a voice or a
+        mutable score window cannot leave stale labels behind.  With no
+        options, the readable composition-oriented preset is used.
+        """
+        from .annotations import score_annotations
+
+        return score_annotations(self, options)
+
+    def to_lilypond(
+            self,
+            *,
+            bar_numbers: bool = True,
+            analysis: bool | AnalysisRenderOptions = False,
+    ) -> str:
+        """Render the score with optional bar numbers and analysis labels."""
         from .lilypond import score_to_lilypond
 
-        return score_to_lilypond(self, bar_numbers=bar_numbers)
+        return score_to_lilypond(
+            self,
+            bar_numbers=bar_numbers,
+            analysis=analysis,
+        )
 
-    def show(self, *, bar_numbers: bool = True) -> "Score":
-        """Display the score with optional bar numbers, then return it."""
+    def show(
+            self,
+            *,
+            bar_numbers: bool = True,
+            analysis: bool | AnalysisRenderOptions = False,
+    ) -> "Score":
+        """Display the score with optional analysis, then return it."""
         from .playback import show_score
 
-        show_score(self, bar_numbers=bar_numbers)
+        show_score(
+            self,
+            bar_numbers=bar_numbers,
+            analysis=analysis,
+        )
         return self
 
     def play(
