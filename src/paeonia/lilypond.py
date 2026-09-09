@@ -7,6 +7,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .annotations import AnalysisRenderOptions, ScoreAnnotation
     from .bar import Bar
     from .note import Note
     from .pitch import Pitch, PitchClass
@@ -164,20 +165,108 @@ def _score_layout_to_lilypond(*, bar_numbers: bool) -> str:
     ))
 
 
+def _duration_to_lilypond_skip(duration: Fraction) -> str:
+    """Render any positive exact duration as a LilyPond skip multiplier."""
+    normalized = Fraction(duration)
+    if normalized <= 0:
+        raise ValueError("analysis skip duration must be positive")
+    if normalized == 1:
+        return "s1"
+    return f"s1*{normalized.numerator}/{normalized.denominator}"
+
+
+def _analysis_markup(annotations: list[ScoreAnnotation]) -> str:
+    lines = " ".join(
+        f'\\line {{ "{_escape_lilypond_string(annotation.text)}" }}'
+        for annotation in annotations
+    )
+    return f"^\\markup \\tiny \\column {{ {lines} }}"
+
+
+def _analysis_carrier_to_lilypond(
+        bar_spans: tuple[Fraction, ...],
+        annotations: tuple[ScoreAnnotation, ...],
+) -> str:
+    """Render annotations on an exact-duration invisible skip voice."""
+    by_bar: dict[int, list[ScoreAnnotation]] = {}
+    for annotation in annotations:
+        if annotation.bar_index >= len(bar_spans):
+            raise ValueError(
+                f"Annotation refers to missing bar {annotation.bar_index}"
+            )
+        by_bar.setdefault(annotation.bar_index, []).append(annotation)
+
+    rendered: list[str] = []
+    for bar_index, span in enumerate(bar_spans):
+        span = Fraction(span)
+        bar_annotations = by_bar.get(bar_index, [])
+        grouped: dict[Fraction, list[ScoreAnnotation]] = {}
+        for annotation in bar_annotations:
+            if annotation.offset >= span:
+                raise ValueError(
+                    f"Annotation offset {annotation.offset} lies outside "
+                    f"bar {bar_index} with span {span}"
+                )
+            if annotation.offset + annotation.duration > span:
+                raise ValueError(
+                    f"Annotation at {annotation.offset} extends outside "
+                    f"bar {bar_index} with span {span}"
+                )
+            grouped.setdefault(annotation.offset, []).append(annotation)
+
+        offsets = sorted(grouped)
+        if not offsets:
+            if span > 0:
+                rendered.append(_duration_to_lilypond_skip(span))
+            rendered.append("|")
+            continue
+
+        current = Fraction(0)
+        for offset_index, offset in enumerate(offsets):
+            if offset > current:
+                rendered.append(_duration_to_lilypond_skip(offset - current))
+            end = (
+                offsets[offset_index + 1]
+                if offset_index + 1 < len(offsets)
+                else span
+            )
+            rendered.append(
+                _duration_to_lilypond_skip(end - offset)
+                + _analysis_markup(grouped[offset])
+            )
+            current = end
+        rendered.append("|")
+    return " ".join(rendered)
+
+
 def score_to_lilypond(
         score: Score,
         *,
         bar_numbers: bool = True,
+        analysis: bool | AnalysisRenderOptions = False,
 ) -> str:
     """Render an aligned score as a complete LilyPond score expression.
 
     Bar numbers are shown at every measure by default, including the first
     measure and measures between system breaks. Pass ``bar_numbers=False`` to
-    retain LilyPond's standard bar-number visibility.
+    retain LilyPond's standard bar-number visibility. ``analysis=True`` adds
+    a readable composition-oriented analysis overlay; pass an
+    :class:`~paeonia.annotations.AnalysisRenderOptions` for finer control.
     """
+    from .annotations import (
+        normalize_analysis_render_options,
+        score_annotations,
+    )
+
     score.validate_alignment()
+    analysis_options = normalize_analysis_render_options(analysis)
+    annotations = (
+        ()
+        if analysis_options is None
+        else score_annotations(score, analysis_options)
+    )
     rendered_staves = []
-    for name, staff in score.staves.items():
+    for staff_index, (name, staff) in enumerate(score.staves.items()):
         display_name = staff.name or name
         context = (
             "\\new Staff \\with { instrumentName = "
@@ -189,11 +278,27 @@ def score_to_lilypond(
             inherited=score.default_tonality,
             inherited_plan=score.tonality_plan,
         )
-        rendered_staves.append(
-            f"{context} {{ \\clef {staff.clef} "
+        music = (
+            f"{{ \\clef {staff.clef} "
             f"\\time {score.time_signature[0]}/{score.time_signature[1]} "
             f"\\tempo 4 = {score.tempo} {voice} \\bar \"|.\" }}"
         )
+        staff_annotations = tuple(
+            annotation
+            for annotation in annotations
+            if annotation.staff_name == name
+            or (staff_index == 0 and annotation.staff_name is None)
+        )
+        if staff_annotations:
+            carrier = _analysis_carrier_to_lilypond(
+                staff.voice.bar_spans(),
+                staff_annotations,
+            )
+            rendered_staves.append(
+                f"{context} << {music} {{ {carrier} }} >>"
+            )
+        else:
+            rendered_staves.append(f"{context} {music}")
     layout = _score_layout_to_lilypond(bar_numbers=bar_numbers)
     score_body = "\n".join(
         (

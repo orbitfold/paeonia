@@ -28,6 +28,7 @@ from .midi import (
     score_to_midi,
 )
 if TYPE_CHECKING:
+    from .annotations import AnalysisRenderOptions
     from .bar import Bar
     from .note import Note
     from .score import Score
@@ -271,9 +272,18 @@ def show_voice(voice: Voice) -> None:
     )
 
 
-def show_score(score: Score, *, bar_numbers: bool = True) -> None:
-    """Render and display an aligned score, showing bar numbers by default."""
+def show_score(
+        score: Score,
+        *,
+        bar_numbers: bool = True,
+        analysis: bool | AnalysisRenderOptions = False,
+) -> None:
+    """Render and display a score with optional analytical annotations."""
     _show_lilypond(
-        score_to_lilypond(score, bar_numbers=bar_numbers),
+        score_to_lilypond(
+            score,
+            bar_numbers=bar_numbers,
+            analysis=analysis,
+        ),
         template_name="score_template.ly",
     )

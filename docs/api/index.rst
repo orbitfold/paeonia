@@ -9,5 +9,6 @@ and renderer functions live in their dedicated modules.
 
    model/index
    analysis
+   annotations
    tools
    rendering

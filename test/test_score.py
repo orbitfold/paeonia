@@ -572,8 +572,8 @@ def test_staff_insertion_order_reaches_score_renderer(monkeypatch):
     calls = []
     lilypond = ModuleType("paeonia.lilypond")
 
-    def score_to_lilypond(passed_score, *, bar_numbers):
-        calls.append((tuple(passed_score.staves), bar_numbers))
+    def score_to_lilypond(passed_score, *, bar_numbers, analysis):
+        calls.append((tuple(passed_score.staves), bar_numbers, analysis))
         return "rendered score"
 
     lilypond.score_to_lilypond = score_to_lilypond
@@ -582,6 +582,6 @@ def test_staff_insertion_order_reaches_score_renderer(monkeypatch):
     assert score.to_lilypond() == "rendered score"
     assert score.to_lilypond(bar_numbers=False) == "rendered score"
     assert calls == [
-        (("zeta", "alpha"), True),
-        (("zeta", "alpha"), False),
+        (("zeta", "alpha"), True, False),
+        (("zeta", "alpha"), False, False),
     ]

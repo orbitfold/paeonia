@@ -1,3 +1,4 @@
+# pyright: reportImportCycles=false
 """Time-aware vertical, harmonic, registral, and voice-leading analysis.
 
 The functions in this module inspect model objects without modifying them.
@@ -14,12 +15,14 @@ from dataclasses import dataclass
 from fractions import Fraction
 from functools import lru_cache
 from itertools import combinations
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from .note import Note
 from .pitch import Pitch, PitchClass
-from .staff import Staff
 from .tonality import ScalePosition, Tonality
+
+if TYPE_CHECKING:
+    from .staff import Staff
 
 
 class _ScoreLike(Protocol):
@@ -42,6 +45,7 @@ __all__ = [
     "DensityPoint",
     "Doubling",
     "DoublingSnapshot",
+    "EventReference",
     "HarmonicChange",
     "HarmonicContext",
     "IntervalRelation",
@@ -70,11 +74,32 @@ _ROMAN_NUMERALS = ("I", "II", "III", "IV", "V", "VI", "VII")
 
 
 @dataclass(frozen=True, slots=True)
+class EventReference:
+    """Identify one spelled pitch in a source score event.
+
+    Event and pitch indices are local to the referenced bar.  Keeping this
+    identity in analysis results lets renderers annotate an exact event or an
+    individual chord pitch without trying to recover it from MIDI value and
+    offset.
+    """
+
+    staff: str
+    bar_index: int
+    event_index: int
+    pitch_index: int
+
+
+@dataclass(frozen=True, slots=True)
 class StaffPitches:
-    """Pitches sounding on one staff during a vertical time frame."""
+    """Pitches and source identities sounding in one staff time frame."""
 
     staff: str
     pitches: tuple[Pitch, ...]
+    sources: tuple[EventReference, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.sources and len(self.sources) != len(self.pitches):
+            raise ValueError("sources must correspond one-to-one with pitches")
 
 
 @dataclass(frozen=True, slots=True)
@@ -266,6 +291,7 @@ class NonChordTone:
     staff: str
     pitch: Pitch
     kind: Literal["passing", "neighbor", "unclassified"]
+    source: EventReference | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -344,6 +370,15 @@ class Verticality:
             pitch
             for item in self.staff_pitches
             for pitch in item.pitches
+        )
+
+    @property
+    def sources(self) -> tuple[EventReference, ...]:
+        """Return source identities in staff and chord order."""
+        return tuple(
+            source
+            for item in self.staff_pitches
+            for source in item.sources
         )
 
     @property
@@ -627,12 +662,13 @@ def _bar_events(
         score: _ScoreLike,
         staff_name: str,
         bar_index: int,
-) -> tuple[tuple[Fraction, Fraction, Note], ...]:
-    result: list[tuple[Fraction, Fraction, Note]] = []
+) -> tuple[tuple[Fraction, Fraction, int, Note], ...]:
+    result: list[tuple[Fraction, Fraction, int, Note]] = []
     offset = Fraction(0)
     notes = score.staves[staff_name].voice[bar_index].notes
     index = 0
     while index < len(notes):
+        event_index = index
         note = notes[index]
         end = offset + note.duration
         current = note
@@ -643,7 +679,7 @@ def _bar_events(
             end += following.duration
             current = following
             index += 1
-        result.append((offset, end, note))
+        result.append((offset, end, event_index, note))
         offset = end
         index += 1
     return tuple(result)
@@ -674,7 +710,7 @@ def verticalities(
     }
     boundaries = {Fraction(0)}
     for events in events_by_staff.values():
-        for start, end, _ in events:
+        for start, end, _, _ in events:
             boundaries.update((start, end))
     ordered_boundaries = sorted(boundaries)
 
@@ -685,11 +721,26 @@ def verticalities(
         owned: list[StaffPitches] = []
         for name in staff_names:
             sounding = ()
-            for event_start, event_end, note in events_by_staff[name]:
+            sources = ()
+            for (
+                    event_start,
+                    event_end,
+                    event_index,
+                    note,
+            ) in events_by_staff[name]:
                 if event_start <= start < event_end:
                     sounding = () if note.is_rest() else note.pitches
+                    sources = tuple(
+                        EventReference(
+                            staff=name,
+                            bar_index=bar_index,
+                            event_index=event_index,
+                            pitch_index=pitch_index,
+                        )
+                        for pitch_index in range(len(sounding))
+                    )
                     break
-            owned.append(StaffPitches(name, sounding))
+            owned.append(StaffPitches(name, sounding, sources))
         staff_pitches = tuple(owned)
         frames.append(Verticality(
             bar_index=bar_index,
@@ -1258,7 +1309,7 @@ def _non_chord_tones(
         if candidate is None:
             continue
         for item in frame.staff_pitches:
-            for pitch in item.pitches:
+            for pitch_index, pitch in enumerate(item.pitches):
                 if pitch.midi % 12 not in candidate.extra_pitch_classes:
                     continue
                 previous = _nearest_staff_pitch(
@@ -1296,6 +1347,11 @@ def _non_chord_tones(
                     staff=item.staff,
                     pitch=pitch,
                     kind=kind,
+                    source=(
+                        item.sources[pitch_index]
+                        if item.sources
+                        else None
+                    ),
                 ))
     return tuple(result)
 
